@@ -180,22 +180,25 @@
 			}
 			
 			
+			
 			if(strcmp(opNode->NType, "For")==0)
 			{
 				int temp = lIndex;
 				//next level of AST
 				codeGenOp(opNode->NextLevel[0]);
+				printf("\nL%d: ", lIndex);
+				codeGenOp(opNode->NextLevel[1]);
 				//three address code
-				printf("L%d: If False T%d goto L%d\n", lIndex, opNode->NextLevel[0]->nodeNo, temp+1);
+				printf("If False T%d goto L%d\n", opNode->NextLevel[1]->nodeNo, temp+1);
 				makeQuad(makeStr(temp, 0), "-", "-", "Label");		
 				makeQuad(makeStr(temp+1, 0), makeStr(opNode->NextLevel[0]->nodeNo, 1), "-", "If False");								
 				//next level of AST
-				codeGenOp(opNode->NextLevel[1]);
+				codeGenOp(opNode->NextLevel[2]);
 				//three address code
-				printf("L%d: If False T%d goto L%d\n", lIndex, opNode->NextLevel[1]->nodeNo, temp+1);
+				printf("If False T%d goto L%d\n", opNode->NextLevel[2]->nodeNo, temp+1);
 				makeQuad(makeStr(temp, 0), "-", "-", "goto");
 				//next level of AST
-				codeGenOp(opNode->NextLevel[2]);
+				codeGenOp(opNode->NextLevel[3]);
 				//three address code
 				printf("goto L%d\n", temp);
 				printf("L%d: ", temp+1);
@@ -208,12 +211,12 @@
 		{
 			int temp = lIndex;
 			//next level of AST
+			printf("\nL%d: ", lIndex);
 			codeGenOp(opNode->NextLevel[0]);
 			//three address code
-			printf("L%d: If False T%d goto L%d\n", lIndex, opNode->NextLevel[0]->nodeNo, lIndex+1);
+			printf("If False T%d goto L%d\n", opNode->NextLevel[0]->nodeNo, lIndex+1);
 			makeQuad(makeStr(temp, 0), "-", "-", "Label");		
 			makeQuad(makeStr(temp+1, 0), makeStr(opNode->NextLevel[0]->nodeNo, 1), "-", "If False");								
-			lIndex+=2;			
 			//next level of AST
 			codeGenOp(opNode->NextLevel[1]);
 			//three address code
@@ -919,7 +922,7 @@ else_stmt : T_Else T_Cln start_suite {$$ = createOp("Else", 1, $3);};
 
 while_stmt : T_While bool_exp T_Cln start_suite {$$ = createOp("While", 2, $2, $4);}; 
 
-for_stmt : T_For T_ID T_In T_Range T_OP constant T_Comma constant T_CP T_Cln start_suite { insertRecord("Identifier", $<text>2, @1.first_line, currentScope); Node* idNode = createID_Const("Identifier", $<text>2, currentScope); e1 = createOp(">=", 2, idNode, $<text>6); e2 = createOp("<", 2, idNode, $<text>8); $$ = createOp("For", 3, e1, e2, $11);}; 
+for_stmt : T_For T_ID T_In T_Range T_OP constant T_Comma constant T_CP T_Cln start_suite { insertRecord("Identifier", $<text>2, @1.first_line, currentScope); Node* idNode = createID_Const("Identifier", $<text>2, currentScope); e1 = createOp("=", 2, idNode, $<text>6); e2 = createOp(">=", 2, idNode, $<text>6); e3 = createOp("<", 2, idNode, $<text>8); $$ = createOp("For", 4, e1, e2, e3, $11);}; 
 
 
 start_suite : basic_stmt {$$ = $1;}
