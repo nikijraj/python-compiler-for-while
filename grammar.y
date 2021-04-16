@@ -660,17 +660,17 @@
 	{
 		int i = 0, j = 0;
 		
-		printf("\n----------------------------Symbol Table----------------------------");
-		printf("\nScope\tName\tType\t\tDeclaration\tLast Used Line\n");
+		printf("\n----------------------------------------------------------------Symbol Table----------------------------------------------------------------\n");
+		printf("\nScope\t\t\tName\t\t\tType\t\t\t\tDeclaration\t\t\tLast Used Line\n\n");
 		for(i=0; i<=sIndex; i++)
 		{
 			for(j=0; j<st[i].ele_count; j++)
 			{
-				printf("(%d, %d)\t%s\t%s\t%d\t\t%d\n", st[i].parent, st[i].scope, st[i].Elements[j].name, st[i].Elements[j].type, st[i].Elements[j].decLine,  st[i].Elements[j].lastLine);
+				printf("(%d, %d)\t\t\t%s\t\t\t%s\t\t\t%d\t\t\t\t%d\n", st[i].parent, st[i].scope, st[i].Elements[j].name, st[i].Elements[j].type, st[i].Elements[j].decLine,  st[i].Elements[j].lastLine);
 			}
 		}
 		
-		printf("-------------------------------------------------------------------------\n");
+		printf("-------------------------------------------------------------------------------------------------------------------------------------------------\n");
 		
 	}
 	
@@ -749,6 +749,24 @@
    return 1;
 	}
 	
+	void commonSubexprElim()
+	{
+		int i = 0, j = 0;
+			for(i=0; i<qIndex; i++)
+			{
+				for(j=i+1; j<qIndex; j++)
+				{
+					if((strcmp(quad_array[i].A1, quad_array[j].A1)==0) && (strcmp(quad_array[i].A2, quad_array[j].A2)==0) && (strcmp(quad_array[i].Op, quad_array[j].Op)==0))
+					{
+						//quad_array[i].R='\0';
+						quad_array[i].I = -1;
+
+					}
+				}
+			}
+			
+	}
+
 	int deadCodeElimination()
 	{
 		int i = 0, j = 0, flag = 1, XF=0;
@@ -794,18 +812,22 @@
 
 	void printQuads()
 	{
-		printf("\n--------------------------------Quadruples---------------------------------\n");
+		printf("\n--------------------------------------------------------------------Quadruples---------------------------------------------------------------------\n");
+		printf("\nLno.			Oper.			Arg1			Arg2			Res\n\n");
+		
 		int i = 0;
 		for(i=0; i<qIndex; i++)
 		{
 			if(quad_array[i].I > -1)
-				printf("%d\t%s\t%s\t%s\t%s\n", quad_array[i].I, quad_array[i].Op, quad_array[i].A1, quad_array[i].A2, quad_array[i].R);
+				printf("%d\t\t\t%s\t\t\t%s\t\t\t%s\t\t\t%s\n", quad_array[i].I, quad_array[i].Op, quad_array[i].A1, quad_array[i].A2, quad_array[i].R);
 		}
-		printf("--------------------------------------------------------------------------\n");
+		printf("--------------------------------------------------------------------------------------------------------------------------------------------------\n");
 	}
 	
 	void freeAll()
 	{
+		copyProp();
+		commonSubexprElim();
 		deadCodeElimination();
 		printQuads();
 		printf("\n");
