@@ -15,10 +15,10 @@
 	extern int depth;
 	extern int top();
 	extern int pop();
-//Binu	int currentScope = 1, previousScope = 1;
+//Bob	int currentScope = 1, previousScope = 1;
 	int currentScope = 0 , previousScope = 1;
 	
-// Binu	int *arrayScope = NULL;
+// Bob	int *arrayScope = NULL;
 
 	int yylex();
 	void yyerror(const char*);
@@ -476,7 +476,7 @@
 	
 	void initNewTable(int scope)
 	{
-		/* Binu
+		/* Bob
 		arrayScope[scope]++;
 		sIndex++;
 		st[sIndex].scope = power(scope, arrayScope[scope]);
@@ -494,8 +494,8 @@
 	{
 		int i = 0;
 		st = (SymTable*)calloc(MAXST, sizeof(SymTable));
-		// Binu arrayScope = (int*)calloc(10, sizeof(int));
-//Binu		initNewTable(1);
+		// Bob arrayScope = (int*)calloc(10, sizeof(int));
+//Bob		initNewTable(1);
 		initNewTable(0);
 		argsList = (char *)malloc(100);
 		strcpy(argsList, "");
@@ -926,7 +926,7 @@ for_stmt : T_For T_ID T_In T_Range T_OP constant T_Comma constant T_CP T_Cln sta
 
 
 start_suite : basic_stmt {$$ = $1;}
-            | T_NL ID {/* Binu initNewTable($<depth>2); updateScope($<depth>2);*/} finalStatements suite {$$ = createOp("BeginBlock", 2, $4, $5);};
+            | T_NL ID {/* Bob initNewTable($<depth>2); updateScope($<depth>2);*/} finalStatements suite {$$ = createOp("BeginBlock", 2, $4, $5);};
 
 suite : T_NL ND finalStatements suite {$$ = createOp("Next", 2, $3, $4);}
       | T_NL end_suite {$$ = $2;};
