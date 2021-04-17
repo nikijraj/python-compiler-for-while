@@ -45,11 +45,11 @@
 	{
 		int nodeNo;
 		//if the Node is an operator
-    	char *NType;
-	    int opCount;
-    	struct ASTNode** NextLevel;
+    		char *NType;
+		int opCount;
+    		struct ASTNode** NextLevel;
 		//if the Node is an identifier or a constant
-    	Record *id;
+    		Record *id;
 	} Node;
   
 	typedef struct Quad
@@ -147,65 +147,61 @@
 	
 	int isBinOp(char *Op)
 	{
-			if((strcmp(Op, "+")==0) || (strcmp(Op, "*")==0) || (strcmp(Op, "/")==0) || (strcmp(Op, ">=")==0) || (strcmp(Op, "<=")==0) || (strcmp(Op, "<")==0) || (strcmp(Op, ">")==0) || 
-				 (strcmp(Op, "in")==0) || (strcmp(Op, "==")==0) || (strcmp(Op, "and")==0) || (strcmp(Op, "or")==0))
-				{
-					return 1;
-				}
-				
-				else 
-				{
-					return 0;
-				}
+		if((strcmp(Op, "+")==0) || (strcmp(Op, "*")==0) || (strcmp(Op, "/")==0) || (strcmp(Op, ">=")==0) || (strcmp(Op, "<=")==0) || (strcmp(Op, "<")==0) || (strcmp(Op, ">")==0) || 
+			(strcmp(Op, "in")==0) || (strcmp(Op, "==")==0) || (strcmp(Op, "and")==0) || (strcmp(Op, "or")==0))
+		{
+			return 1;
+		}
+		else 
+		{
+			return 0;
+		}
+	}
+		
+	void codeGenOp(Node *opNode)
+	{
+		int i=0;
+		if(opNode == NULL)
+		{
+			printf("opNode is null");
+			return;
 		}
 		
-		void codeGenOp(Node *opNode)
+		if(opNode->NType == NULL)
 		{
-			int i=0;
-			if(opNode == NULL)
+			if((strcmp(opNode->id->type, "Identifier")==0) || (strcmp(opNode->id->type, "Constant")==0))
 			{
-				printf("opNode is null");
-				return;
-			}
-			
-			if(opNode->NType == NULL)
-			{
-				if((strcmp(opNode->id->type, "Identifier")==0) || (strcmp(opNode->id->type, "Constant")==0))
-				{
-					//three address code
-					printf("T%d = %s\n", opNode->nodeNo, opNode->id->name);
-					makeQuad(makeStr(opNode->nodeNo, 1), opNode->id->name, "-", "=");
-				}
-				return;
-			}
-			
-			
-			
-			if(strcmp(opNode->NType, "For")==0)
-			{
-				int temp = lIndex;
-				//next level of AST
-				codeGenOp(opNode->NextLevel[0]);
-				printf("\nL%d: ", lIndex);
-				codeGenOp(opNode->NextLevel[1]);
 				//three address code
-				printf("If False T%d goto L%d\n", opNode->NextLevel[1]->nodeNo, temp+1);
-				makeQuad(makeStr(temp, 0), "-", "-", "Label");		
-				makeQuad(makeStr(temp+1, 0), makeStr(opNode->NextLevel[0]->nodeNo, 1), "-", "If False");								
-				//next level of AST
-				codeGenOp(opNode->NextLevel[2]);
-				//three address code
-				printf("If False T%d goto L%d\n", opNode->NextLevel[2]->nodeNo, temp+1);
-				makeQuad(makeStr(temp, 0), "-", "-", "goto");
-				//next level of AST
-				codeGenOp(opNode->NextLevel[3]);
-				//three address code
-				printf("goto L%d\n", temp);
-				printf("L%d: ", temp+1);
-				makeQuad(makeStr(temp+1, 0), "-", "-", "Label"); 
-				lIndex = lIndex+2;
-				return;
+				printf("T%d = %s\n", opNode->nodeNo, opNode->id->name);
+				makeQuad(makeStr(opNode->nodeNo, 1), opNode->id->name, "-", "=");
 			}
+			return;
+		}
+		if(strcmp(opNode->NType, "For")==0)
+		{
+			int temp = lIndex;
+			//next level of AST
+			codeGenOp(opNode->NextLevel[0]);
+			printf("\nL%d: ", lIndex);
+			codeGenOp(opNode->NextLevel[1]);
+			//three address code
+			printf("If False T%d goto L%d\n", opNode->NextLevel[1]->nodeNo, temp+1);
+			makeQuad(makeStr(temp, 0), "-", "-", "Label");		
+			makeQuad(makeStr(temp+1, 0), makeStr(opNode->NextLevel[0]->nodeNo, 1), "-", "If False");								
+			//next level of AST
+			codeGenOp(opNode->NextLevel[2]);
+			//three address code
+			printf("If False T%d goto L%d\n", opNode->NextLevel[2]->nodeNo, temp+1);
+			makeQuad(makeStr(temp, 0), "-", "-", "goto");
+			//next level of AST
+			codeGenOp(opNode->NextLevel[3]);
+			//three address code
+			printf("goto L%d\n", temp);
+			printf("L%d: ", temp+1);
+			makeQuad(makeStr(temp+1, 0), "-", "-", "Label"); 
+			lIndex = lIndex+2;
+			return;
+		}
 
 		if(strcmp(opNode->NType, "While")==0)
 		{
@@ -404,22 +400,20 @@
 	{
 		va_list params;
 		Node *newNode;
-	    int i;
-    	newNode = (Node*)calloc(1, sizeof(Node));
-    
-	    newNode->NextLevel = (Node**)calloc(opCount, sizeof(Node*));
-    
-	    newNode->NType = (char*)malloc(strlen(oper)+1);
+	    	int i;
+	    	newNode = (Node*)calloc(1, sizeof(Node));
+	    	newNode->NextLevel = (Node**)calloc(opCount, sizeof(Node*));
+	    	newNode->NType = (char*)malloc(strlen(oper)+1);
    		strcpy(newNode->NType, oper);
-	    newNode->opCount = opCount;
-	    va_start(params, opCount);
+		newNode->opCount = opCount;
+	    	va_start(params, opCount);
     
-    	for (i = 0; i < opCount; i++)
-		    newNode->NextLevel[i] = va_arg(params, Node*);
-    
-	    va_end(params);
-    	newNode->nodeNo = NodeCount++;
-    	return newNode;
+	    	for (i = 0; i < opCount; i++)
+	    		newNode->NextLevel[i] = va_arg(params, Node*);
+
+	    	va_end(params);
+    		newNode->nodeNo = NodeCount++;
+    		return newNode;
 	}
   
 	void addToList(char *newVal, int flag)
@@ -738,15 +732,15 @@
 	
 	int IsValidNumber(char * string)
 	{
-   for(int i = 0; i < strlen( string ); i ++)
-   {
-      //ASCII value of 0 = 48, 9 = 57. So if value is outside of numeric range then fail
-      //Checking for negative sign "-" could be added: ASCII value 45.
-      if (string[i] < 48 || string[i] > 57)
-         return 0;
-   }
+		for(int i = 0; i < strlen( string ); i ++)
+   		{
+		      //ASCII value of 0 = 48, 9 = 57. So if value is outside of numeric range then fail
+		      //Checking for negative sign "-" could be added: ASCII value 45.
+			if (string[i] < 48 || string[i] > 57)
+       				return 0;
+   		}
  
-   return 1;
+		return 1;
 	}
 	
 	int deadCodeElimination()
@@ -781,16 +775,16 @@
 	}
 		
 	void copyProp()
-    {
-        for(int i=0; i<qIndex; i++)
-            {
-                if((strcmp(quad_array[i].Op,"=")==0) && (!quad_array[i].A2))
-                {
-                    quad_array[i].R=quad_array[i].A1;
-                    quad_array[i].A1='\0';
-                }
-            }
-    }
+    	{
+ 		for(int i=0; i<qIndex; i++)
+            	{
+                	if((strcmp(quad_array[i].Op,"=")==0) && (!quad_array[i].A2))
+                	{
+	                    quad_array[i].R=quad_array[i].A1;
+       		            quad_array[i].A1='\0';
+               		}
+  		}
+    	}
 
 	void printQuads()
 	{
