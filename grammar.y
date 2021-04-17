@@ -954,9 +954,9 @@ start_suite : basic_stmt {$$ = $1;}
 suite : T_NL ND finalStatements suite {$$ = createOp("Next", 2, $3, $4);}
       | T_NL end_suite {$$ = $2;};
 
-end_suite : DD {updateScope($<depth>1);} finalStatements {$$ = createOp("EndBlock", 1, $3); printf("endsuite#1\n\n");} 
-          | DD {updateScope($<depth>1);} {$$ = createOp("EndBlock", 0);printf("endsuite#2\n\n");}
-          | {$$ = createOp("EndBlock", 0); resetDepth();printf("endsuite#3\n\n");};
+end_suite : DD {updateScope($<depth>1);} finalStatements {$$ = createOp("EndBlock", 1, $3);} 
+          | DD {updateScope($<depth>1);} {$$ = createOp("EndBlock", 0);}
+          | {$$ = createOp("EndBlock", 0); resetDepth();};
 
 args : T_ID {addToList($<text>1, 1);} args_list {$$ = createOp(argsList, 0); clearArgsList();} 
      | {$$ = createOp("Void", 0);};

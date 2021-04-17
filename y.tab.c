@@ -68,281 +68,317 @@
 /* First part of user prologue.  */
 #line 1 "grammar.y"
 
-	#include <stdio.h>
-	#include <stdlib.h>
-	#include <string.h>
-	#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdarg.h>
 
-	#define YYERROR_VERBOSE 1
-	#define MAXRECST 200
-	#define MAXST 100
-	#define MAXCHILDREN 100
-	#define MAXLEVELS 20
-	#define MAXQUADS 1000
+#define YYERROR_VERBOSE 1
+#define MAXRECST 200
+#define MAXST 100
+#define MAXCHILDREN 100
+#define MAXLEVELS 20
+#define MAXQUADS 1000
 	
-	extern int yylineno;
-	extern int depth;
-	extern int top();
-	extern int pop();
-//Binu	int currentScope = 1, previousScope = 1;
-	int currentScope = 0 , previousScope = 1;
+extern int yylineno;
+extern int depth;
+extern int top();
+extern int pop();
 	
-// Binu	int *arrayScope = NULL;
+	
+//Bob	int currentScope = 1, previousScope = 1;
+int currentScope = 0 , previousScope = 1;
+	
+// Bob	int *arrayScope = NULL;
 
-	int yylex();
-	void yyerror(const char*);
+int yylex();
+void yyerror(const char*);
 	
-	typedef struct Record
-	{
-		char *type;
-		char *name;
-		int decLine;
-		int lastLine;
-	} Record;
+typedef struct Record
+{
+	char *type;
+	char *name;
+	int decLine;
+	int lastLine;
+} Record;
 
-	typedef struct SymTable
-	{
-		int no;
-		int ele_count;
-		int scope;
-		Record *Elements;
-		int parent;
-		
-	} SymTable;
+typedef struct SymTable
+{
+	int no;
+	int ele_count;
+	int scope;
+	Record *Elements;
+	int parent;
+
+} SymTable;
 	
-	typedef struct ASTNode
-	{
-		int nodeNo;
-		//if the Node is an operator
-    	char *NType;
-	    int opCount;
+typedef struct ASTNode
+{
+	int nodeNo;
+
+	//if the Node is an operator
+ 	char *NType;
+    	int opCount;
     	struct ASTNode** NextLevel;
-		//if the Node is an identifier or a constant
+		
+	//if the Node is an identifier or a constant
     	Record *id;
-	} Node;
+} Node;
   
-	typedef struct Quad
-	{
-		char *R;
-		char *A1;
-		char *A2;
-		char *Op;
-		int I;
-	} Quad;
+typedef struct Quad
+{
+	char *R;
+	char *A1;
+	char *A2;
+	char *Op;
+	int I;
+} Quad;
 	
-	SymTable *st = NULL;
-	int sIndex = 0, aIndex = -1, tabCount = 0, tIndex = 0 , lIndex = 0, qIndex = 0, NodeCount = 0;
-	// BINU int sIndex = -1, aIndex = -1, tabCount = 0, tIndex = 0 , lIndex = 0, qIndex = 0, NodeCount = 0;
+SymTable *st = NULL;
+int sIndex = 0, aIndex = -1, tabCount = 0, tIndex = 0 , lIndex = 0, qIndex = 0, NodeCount = 0;
+// BINU int sIndex = -1, aIndex = -1, tabCount = 0, tIndex = 0 , lIndex = 0, qIndex = 0, NodeCount = 0;
+Node *rootNode;
+char *argsList = NULL;
+char *tString = NULL, *lString = NULL;
+Quad *quad_array = NULL;
+Node ***Tree = NULL;
+int *levelIndices = NULL;
+Node * e1, * e2, * e3 = NULL;
 
-	Node *rootNode;
-	char *argsList = NULL;
-	char *tString = NULL, *lString = NULL;
-	Quad *quad_array = NULL;
-	Node ***Tree = NULL;
-	int *levelIndices = NULL;
-	Node * e1, * e2, * e3 = NULL;
-	
-	//function prototypes 	
-	Record* findRecord(const char *name, const char *type, int scope);
-	Node *createID_Const(char *value, char *type, int scope);
-	int power(int base, int exp);
-	void updateScope(int scope);
-	void resetDepth();
-	int scopeBasedTableSearch(int scope);
-	void initNewTable(int scope);
-	void init();
-	int searchRecordInScope(const char* type, const char *name, int index);
-	void insertRecord(const char* type, const char *name, int lineNo, int scope);
-	int searchRecordInScope(const char* type, const char *name, int index);
-	void checkList(const char *name, int lineNo, int scope);
-	void dispSymtable();
-	void freeAll();
-	void addToList(char *newVal, int flag);
-	void clearArgsList();
-	int isBinOp(char *Op);
-	
-	void Xitoa(int num, char *str)
+//function prototypes 	
+Record* findRecord(const char *name, const char *type, int scope);
+Node *createID_Const(char *value, char *type, int scope);
+int power(int base, int exp);
+void updateScope(int scope);
+void resetDepth();
+int scopeBasedTableSearch(int scope);
+void initNewTable(int scope);
+void init();
+int searchRecordInScope(const char* type, const char *name, int index);
+void insertRecord(const char* type, const char *name, int lineNo, int scope);
+int searchRecordInScope(const char* type, const char *name, int index);
+void checkList(const char *name, int lineNo, int scope);
+void dispSymtable();
+void freeAll();
+void addToList(char *newVal, int flag);
+void clearArgsList();
+int isBinOp(char *Op);
+
+void Xitoa(int num, char *str)
+{
+	if(str == NULL)
 	{
-		if(str == NULL)
-		{
-			 printf("Allocate Memory\n");
-		   return;
-		}
-		sprintf(str, "%d", num);
+           printf("Allocate Memory\n");
+	   return;
+	}
+	sprintf(str, "%d", num);
+}
+
+//for intermediate code in sym table	
+char *makeStr(int no, int flag)
+{
+	char A[10];
+	Xitoa(no, A);
+	
+	if(flag==1)
+	{
+			strcpy(tString, "T");
+			strcat(tString, A);
+			insertRecord("ICGTempVar", tString, -1, 0);
+			return tString;
+	}
+	else
+	{
+			strcpy(lString, "L");
+			strcat(lString, A);
+			insertRecord("ICGTempLabel", lString, -1, 0);
+			return lString;
 	}
 
-	//for intermediate code in sym table	
-	char *makeStr(int no, int flag)
-	{
-		char A[10];
-		Xitoa(no, A);
-		
-		if(flag==1)
-		{
-				strcpy(tString, "T");
-				strcat(tString, A);
-				insertRecord("ICGTempVar", tString, -1, 0);
-				return tString;
-		}
-		else
-		{
-				strcpy(lString, "L");
-				strcat(lString, A);
-				insertRecord("ICGTempLabel", lString, -1, 0);
-				return lString;
-		}
-
-	}
+}
 	
-	//fill quadrant
-	void makeQuad(char *R, char *A1, char *A2, char *Op)
+//add a quadrant record 
+void makeQuad(char *R, char *A1, char *A2, char *Op)
+{
+	quad_array[qIndex].R = (char*)malloc(strlen(R)+1);
+	quad_array[qIndex].Op = (char*)malloc(strlen(Op)+1);
+	quad_array[qIndex].A1 = (char*)malloc(strlen(A1)+1);
+	quad_array[qIndex].A2 = (char*)malloc(strlen(A2)+1);
+	
+	strcpy(quad_array[qIndex].R, R);
+	strcpy(quad_array[qIndex].A1, A1);
+	strcpy(quad_array[qIndex].A2, A2);
+	strcpy(quad_array[qIndex].Op, Op);
+	quad_array[qIndex].I = qIndex;
+
+	qIndex++;
+	
+	return;
+}
+	
+int isBinOp(char *Op)
+{
+		if((strcmp(Op, "+")==0) || (strcmp(Op, "*")==0) || (strcmp(Op, "/")==0) || (strcmp(Op, ">=")==0) || (strcmp(Op, "<=")==0) || (strcmp(Op, "<")==0) || (strcmp(Op, ">")==0) || 
+			 (strcmp(Op, "in")==0) || (strcmp(Op, "==")==0) || (strcmp(Op, "and")==0) || (strcmp(Op, "or")==0))
+			{
+				return 1;
+			}
+			
+			else 
+			{
+				return 0;
+			}
+}
+		
+void codeGenOp(Node *opNode)
+{
+	int i=0;
+	if(opNode == NULL)
 	{
+		printf("opNode is null");
+		return;
+	}
 		
-		quad_array[qIndex].R = (char*)malloc(strlen(R)+1);
-		quad_array[qIndex].Op = (char*)malloc(strlen(Op)+1);
-		quad_array[qIndex].A1 = (char*)malloc(strlen(A1)+1);
-		quad_array[qIndex].A2 = (char*)malloc(strlen(A2)+1);
-		
-		strcpy(quad_array[qIndex].R, R);
-		strcpy(quad_array[qIndex].A1, A1);
-		strcpy(quad_array[qIndex].A2, A2);
-		strcpy(quad_array[qIndex].Op, Op);
-		quad_array[qIndex].I = qIndex;
- 
-		qIndex++;
-		
+	if(opNode->NType == NULL)
+	{
+		if((strcmp(opNode->id->type, "Identifier")==0) || (strcmp(opNode->id->type, "Constant")==0))
+		{
+			//three address code
+			printf("T%d = %s\n", opNode->nodeNo, opNode->id->name);
+			makeQuad(makeStr(opNode->nodeNo, 1), opNode->id->name, "-", "=");
+		}
 		return;
 	}
 	
-	int isBinOp(char *Op)
+	if(strcmp(opNode->NType, "For")==0)
 	{
-			if((strcmp(Op, "+")==0) || (strcmp(Op, "*")==0) || (strcmp(Op, "/")==0) || (strcmp(Op, ">=")==0) || (strcmp(Op, "<=")==0) || (strcmp(Op, "<")==0) || (strcmp(Op, ">")==0) || 
-				 (strcmp(Op, "in")==0) || (strcmp(Op, "==")==0) || (strcmp(Op, "and")==0) || (strcmp(Op, "or")==0))
-				{
-					return 1;
-				}
-				
-				else 
-				{
-					return 0;
-				}
-		}
-		
-		void codeGenOp(Node *opNode)
-		{
-			int i=0;
-			if(opNode == NULL)
-			{
-				printf("opNode is null");
-				return;
-			}
-			
-			if(opNode->NType == NULL)
-			{
-				if((strcmp(opNode->id->type, "Identifier")==0) || (strcmp(opNode->id->type, "Constant")==0))
-				{
-					//three address code
-					printf("T%d = %s\n", opNode->nodeNo, opNode->id->name);
-					makeQuad(makeStr(opNode->nodeNo, 1), opNode->id->name, "-", "=");
-				}
-				return;
-			}
-			
-			
-			if(strcmp(opNode->NType, "For")==0)
-			{
-				int temp = lIndex;
-				//next level of AST
-				codeGenOp(opNode->NextLevel[0]);
-				//three address code
-				printf("L%d: If False T%d goto L%d\n", lIndex, opNode->NextLevel[0]->nodeNo, temp+1);
-				makeQuad(makeStr(temp, 0), "-", "-", "Label");		
-				makeQuad(makeStr(temp+1, 0), makeStr(opNode->NextLevel[0]->nodeNo, 1), "-", "If False");								
-				//next level of AST
-				codeGenOp(opNode->NextLevel[1]);
-				//three address code
-				printf("L%d: If False T%d goto L%d\n", lIndex, opNode->NextLevel[1]->nodeNo, temp+1);
-				makeQuad(makeStr(temp, 0), "-", "-", "goto");
-				//next level of AST
-				codeGenOp(opNode->NextLevel[2]);
-				//three address code
-				printf("goto L%d\n", temp);
-				printf("L%d: ", temp+1);
-				makeQuad(makeStr(temp+1, 0), "-", "-", "Label"); 
-				lIndex = lIndex+2;
-				return;
-			}
+		int temp = lIndex;
+		//next level of AST
+		codeGenOp(opNode->NextLevel[0]);
+		printf("\nL%d: ", lIndex);
+		codeGenOp(opNode->NextLevel[1]);
+		//three address code
+		printf("If False T%d goto L%d\n", opNode->NextLevel[1]->nodeNo, temp+1);
+		makeQuad(makeStr(temp, 0), "-", "-", "Label");		
+		makeQuad(makeStr(temp+1, 0), makeStr(opNode->NextLevel[0]->nodeNo, 1), "-", "If False");								
+		//next level of AST
+		codeGenOp(opNode->NextLevel[2]);
+		//three address code
+		printf("If False T%d goto L%d\n", opNode->NextLevel[2]->nodeNo, temp+1);
+		makeQuad(makeStr(temp, 0), "-", "-", "goto");
+		//next level of AST
+		codeGenOp(opNode->NextLevel[3]);
+		//three address code
+		printf("goto L%d\n", temp);
+		printf("L%d: ", temp+1);
+		makeQuad(makeStr(temp+1, 0), "-", "-", "Label"); 
+		lIndex = lIndex+2;
+		return;
+	}
 
-		if(strcmp(opNode->NType, "While")==0)
-		{
-			int temp = lIndex;
-			//next level of AST
-			codeGenOp(opNode->NextLevel[0]);
-			//three address code
-			printf("L%d: If False T%d goto L%d\n", lIndex, opNode->NextLevel[0]->nodeNo, lIndex+1);
-			makeQuad(makeStr(temp, 0), "-", "-", "Label");		
-			makeQuad(makeStr(temp+1, 0), makeStr(opNode->NextLevel[0]->nodeNo, 1), "-", "If False");								
-			lIndex+=2;			
-			//next level of AST
-			codeGenOp(opNode->NextLevel[1]);
-			//three address code
-			printf("goto L%d\n", temp);
-			makeQuad(makeStr(temp, 0), "-", "-", "goto");
-			//three address code
-			printf("L%d: ", temp+1);
-			fflush(stdout);
-			makeQuad(makeStr(temp+1, 0), "-", "-", "Label"); 
-			lIndex = lIndex+2;
-			return;
-		}
+	if(strcmp(opNode->NType, "While")==0)
+	{
+		int temp = lIndex;
+		//next level of AST
+		printf("\nL%d: ", lIndex);
+		codeGenOp(opNode->NextLevel[0]);
+		//three address code
+		printf("If False T%d goto L%d\n", opNode->NextLevel[0]->nodeNo, lIndex+1);
+		makeQuad(makeStr(temp, 0), "-", "-", "Label");		
+		makeQuad(makeStr(temp+1, 0), makeStr(opNode->NextLevel[0]->nodeNo, 1), "-", "If False");								
+		//next level of AST
+		codeGenOp(opNode->NextLevel[1]);
+		//three address code
+		printf("goto L%d\n", temp);
+		makeQuad(makeStr(temp, 0), "-", "-", "goto");
+		//three address code
+		printf("L%d: ", temp+1);
+		fflush(stdout);
+		makeQuad(makeStr(temp+1, 0), "-", "-", "Label"); 
+		lIndex = lIndex+2;
+		return;
+	}
+	
+	if(strcmp(opNode->NType, "Next")==0)
+	{
+		codeGenOp(opNode->NextLevel[0]);
+		codeGenOp(opNode->NextLevel[1]);
+		return;
+	}
+	
+	if(strcmp(opNode->NType, "BeginBlock")==0)
+	{
+		codeGenOp(opNode->NextLevel[0]);
+		codeGenOp(opNode->NextLevel[1]);		
+		return;	
+	}
 		
-		if(strcmp(opNode->NType, "Next")==0)
+	if(strcmp(opNode->NType, "EndBlock")==0)
+	{
+		switch(opNode->opCount)
 		{
-			codeGenOp(opNode->NextLevel[0]);
-			codeGenOp(opNode->NextLevel[1]);
-			return;
-		}
-		
-		if(strcmp(opNode->NType, "BeginBlock")==0)
-		{
-			codeGenOp(opNode->NextLevel[0]);
-			codeGenOp(opNode->NextLevel[1]);		
-			return;	
-		}
-		
-		if(strcmp(opNode->NType, "EndBlock")==0)
-		{
-			switch(opNode->opCount)
+			case 0 : 
 			{
-				case 0 : 
-				{
-					break;
-				}
-				case 1 : 
-				{
-					codeGenOp(opNode->NextLevel[0]);
-					break;
-				}
+				break;
 			}
-			return;
+			case 1 : 
+			{
+				codeGenOp(opNode->NextLevel[0]);
+				break;
+			}
+		}
+		return;
+	}
+	
+	if(strcmp(opNode->NType, "ListIndex")==0)
+	{
+		printf("T%d = %s[%s]\n", opNode->nodeNo, opNode->NextLevel[0]->id->name, opNode->NextLevel[1]->id->name);
+		makeQuad(makeStr(opNode->nodeNo, 1), opNode->NextLevel[0]->id->name, opNode->NextLevel[1]->id->name, "=[]");
+		return;
+	}
+	
+	if(isBinOp(opNode->NType)==1)
+	{
+		//node has two children
+		codeGenOp(opNode->NextLevel[0]);
+		codeGenOp(opNode->NextLevel[1]);
+		char *X1 = (char*)malloc(10);
+		char *X2 = (char*)malloc(10);
+		char *X3 = (char*)malloc(10);
+		
+		strcpy(X1, makeStr(opNode->nodeNo, 1));
+		strcpy(X2, makeStr(opNode->NextLevel[0]->nodeNo, 1));
+		strcpy(X3, makeStr(opNode->NextLevel[1]->nodeNo, 1));
+
+		printf("T%d = T%d %s T%d\n", opNode->nodeNo, opNode->NextLevel[0]->nodeNo, opNode->NType, opNode->NextLevel[1]->nodeNo);
+		makeQuad(X1, X2, X3, opNode->NType);
+		free(X1);
+		free(X2);
+		free(X3);
+		return;
+	}
+		
+	if(strcmp(opNode->NType, "-")==0)
+	{
+		if(opNode->opCount == 1)
+		{
+			codeGenOp(opNode->NextLevel[0]);
+			char *X1 = (char*)malloc(10);
+			char *X2 = (char*)malloc(10);
+			strcpy(X1, makeStr(opNode->nodeNo, 1));
+			strcpy(X2, makeStr(opNode->NextLevel[0]->nodeNo, 1));
+			printf("T%d = %s T%d\n", opNode->nodeNo, opNode->NType, opNode->NextLevel[0]->nodeNo);
+			makeQuad(X1, X2, "-", opNode->NType);	
 		}
 		
-		if(strcmp(opNode->NType, "ListIndex")==0)
+		else
 		{
-			printf("T%d = %s[%s]\n", opNode->nodeNo, opNode->NextLevel[0]->id->name, opNode->NextLevel[1]->id->name);
-			makeQuad(makeStr(opNode->nodeNo, 1), opNode->NextLevel[0]->id->name, opNode->NextLevel[1]->id->name, "=[]");
-			return;
-		}
-		
-		if(isBinOp(opNode->NType)==1)
-		{
-			//node has two children
 			codeGenOp(opNode->NextLevel[0]);
 			codeGenOp(opNode->NextLevel[1]);
 			char *X1 = (char*)malloc(10);
 			char *X2 = (char*)malloc(10);
 			char *X3 = (char*)malloc(10);
-			
+	
 			strcpy(X1, makeStr(opNode->nodeNo, 1));
 			strcpy(X2, makeStr(opNode->NextLevel[0]->nodeNo, 1));
 			strcpy(X3, makeStr(opNode->NextLevel[1]->nodeNo, 1));
@@ -353,215 +389,181 @@
 			free(X2);
 			free(X3);
 			return;
+		
 		}
+	}
 		
-		if(strcmp(opNode->NType, "-")==0)
-		{
-			if(opNode->opCount == 1)
-			{
-				codeGenOp(opNode->NextLevel[0]);
-				char *X1 = (char*)malloc(10);
-				char *X2 = (char*)malloc(10);
-				strcpy(X1, makeStr(opNode->nodeNo, 1));
-				strcpy(X2, makeStr(opNode->NextLevel[0]->nodeNo, 1));
-				printf("T%d = %s T%d\n", opNode->nodeNo, opNode->NType, opNode->NextLevel[0]->nodeNo);
-				makeQuad(X1, X2, "-", opNode->NType);	
-			}
-			
-			else
-			{
-				codeGenOp(opNode->NextLevel[0]);
-				codeGenOp(opNode->NextLevel[1]);
-				char *X1 = (char*)malloc(10);
-				char *X2 = (char*)malloc(10);
-				char *X3 = (char*)malloc(10);
-			
-				strcpy(X1, makeStr(opNode->nodeNo, 1));
-				strcpy(X2, makeStr(opNode->NextLevel[0]->nodeNo, 1));
-				strcpy(X3, makeStr(opNode->NextLevel[1]->nodeNo, 1));
-
-				printf("T%d = T%d %s T%d\n", opNode->nodeNo, opNode->NextLevel[0]->nodeNo, opNode->NType, opNode->NextLevel[1]->nodeNo);
-				makeQuad(X1, X2, X3, opNode->NType);
-				free(X1);
-				free(X2);
-				free(X3);
-				return;
-			
-			}
-		}
-		
-		if(strcmp(opNode->NType, "import")==0)
-		{
-			printf("import %s\n", opNode->NextLevel[0]->id->name);
-			makeQuad("-", opNode->NextLevel[0]->id->name, "-", "import");
-			return;
-		}
-		
-		if(strcmp(opNode->NType, "NewLine")==0)
-		{
-			codeGenOp(opNode->NextLevel[0]);
-			codeGenOp(opNode->NextLevel[1]);
-			return;
-		}
-		
-		if(strcmp(opNode->NType, "=")==0)
-		{
-			codeGenOp(opNode->NextLevel[1]);
-			printf("%s = T%d\n", opNode->NextLevel[0]->id->name, opNode->NextLevel[1]->nodeNo);
-			makeQuad(opNode->NextLevel[0]->id->name, makeStr(opNode->NextLevel[1]->nodeNo, 1), "-", opNode->NType);
-			return;
-		}
-		
-		if(strcmp(opNode->NType, "Func_Name")==0)
-		{
-			printf("Begin Function %s\n", opNode->NextLevel[0]->id->name);
-			makeQuad("-", opNode->NextLevel[0]->id->name, "-", "BeginF");
-			codeGenOp(opNode->NextLevel[2]);
-			printf("End Function %s\n", opNode->NextLevel[0]->id->name);
-			makeQuad("-", opNode->NextLevel[0]->id->name, "-", "EndF");
-			return;
-		}
-		
-		if(strcmp(opNode->NType, "Func_Call")==0)
-		{
-			if(strcmp(opNode->NextLevel[1]->NType, "Void")==0)
-			{
-				printf("(T%d)Call Function %s\n", opNode->nodeNo, opNode->NextLevel[0]->id->name);
-				makeQuad(makeStr(opNode->nodeNo, 1), opNode->NextLevel[0]->id->name, "-", "Call");
-			}
-			else
-			{
-				char A[10];
-				char* token = strtok(opNode->NextLevel[1]->NType, ","); 
-	  			int i = 0;
-				while (token != NULL) 
-				{
-						i++; 
-				    printf("Push Param %s\n", token);
-				    makeQuad("-", token, "-", "Param"); 
-				    token = strtok(NULL, ","); 
-				}
-				
-				printf("(T%d)Call Function %s, %d\n", opNode->nodeNo, opNode->NextLevel[0]->id->name, i);
-				sprintf(A, "%d", i);
-				makeQuad(makeStr(opNode->nodeNo, 1), opNode->NextLevel[0]->id->name, A, "Call");
-				printf("Pop Params for Function %s, %d\n", opNode->NextLevel[0]->id->name, i);
-								
-				return;
-			}
-		}		
-		
+	if(strcmp(opNode->NType, "import")==0)
+	{
+		printf("import %s\n", opNode->NextLevel[0]->id->name);
+		makeQuad("-", opNode->NextLevel[0]->id->name, "-", "import");
+		return;
 	}
 	
-	Node *createID_Const(char *type, char *value, int scope)
+	if(strcmp(opNode->NType, "NewLine")==0)
 	{
-		char *val = value;
-		Node *newNode;
-		newNode = (Node*)calloc(1, sizeof(Node));
-		newNode->NType = NULL;
-		newNode->opCount = -1;
-		newNode->id = findRecord(value, type, scope);
-		newNode->nodeNo = NodeCount++;
-		return newNode;
+		codeGenOp(opNode->NextLevel[0]);
+		codeGenOp(opNode->NextLevel[1]);
+		return;
 	}
-
-	//AST NType
-	Node *createOp(char *oper, int opCount, ...)
+	
+	if(strcmp(opNode->NType, "=")==0)
 	{
-		va_list params;
-		Node *newNode;
-	    int i;
-    	newNode = (Node*)calloc(1, sizeof(Node));
-    
-	    newNode->NextLevel = (Node**)calloc(opCount, sizeof(Node*));
-    
-	    newNode->NType = (char*)malloc(strlen(oper)+1);
-   		strcpy(newNode->NType, oper);
-	    newNode->opCount = opCount;
-	    va_start(params, opCount);
-    
-    	for (i = 0; i < opCount; i++)
-		    newNode->NextLevel[i] = va_arg(params, Node*);
-    
-	    va_end(params);
-    	newNode->nodeNo = NodeCount++;
-    	return newNode;
+		codeGenOp(opNode->NextLevel[1]);
+		printf("%s = T%d\n", opNode->NextLevel[0]->id->name, opNode->NextLevel[1]->nodeNo);
+		makeQuad(opNode->NextLevel[0]->id->name, makeStr(opNode->NextLevel[1]->nodeNo, 1), "-", opNode->NType);
+		return;
 	}
-  
-	void addToList(char *newVal, int flag)
+		
+	if(strcmp(opNode->NType, "Func_Name")==0)
 	{
-  		if(flag==0)
-	  	{
-			strcat(argsList, ", ");
-			strcat(argsList, newVal);
+		printf("Begin Function %s\n", opNode->NextLevel[0]->id->name);
+		makeQuad("-", opNode->NextLevel[0]->id->name, "-", "BeginF");
+		codeGenOp(opNode->NextLevel[2]);
+		printf("End Function %s\n", opNode->NextLevel[0]->id->name);
+		makeQuad("-", opNode->NextLevel[0]->id->name, "-", "EndF");
+		return;
+	}
+		
+	if(strcmp(opNode->NType, "Func_Call")==0)
+	{
+		if(strcmp(opNode->NextLevel[1]->NType, "Void")==0)
+		{
+			printf("(T%d)Call Function %s\n", opNode->nodeNo, opNode->NextLevel[0]->id->name);
+			makeQuad(makeStr(opNode->nodeNo, 1), opNode->NextLevel[0]->id->name, "-", "Call");
 		}
 		else
 		{
-			strcat(argsList, newVal);
-		}
-  	}
-  
-	void clearArgsList()
-	{
-	    strcpy(argsList, "");
-	}
-  
-	int power(int base, int exp)
-	{
-		int i =0, res = 1;
-		for(i; i<exp; i++)
-		{
-			res *= base;
-		}
-		return res;
-	}
-	
-	void updateScope(int scope)
-	{
-	 //BINU	currentScope = scope;
-	}
-	
-	void resetDepth()
-	{
-		while(top()) pop();
-		depth = 10;
-	}
-	
-	int scopeBasedTableSearch(int scope)
-	{
-		int i = sIndex;
-		for(i; i > -1; i--)
-		{
-			if(st[i].scope == scope)
+			char A[10];
+			char* token = strtok(opNode->NextLevel[1]->NType, ","); 
+  			int i = 0;
+			while (token != NULL) 
 			{
-				return i;
+      			    i++; 
+			    printf("Push Param %s\n", token);
+			    makeQuad("-", token, "-", "Param"); 
+			    token = strtok(NULL, ","); 
 			}
+				
+			printf("(T%d)Call Function %s, %d\n", opNode->nodeNo, opNode->NextLevel[0]->id->name, i);
+			sprintf(A, "%d", i);
+			makeQuad(makeStr(opNode->nodeNo, 1), opNode->NextLevel[0]->id->name, A, "Call");
+			printf("Pop Params for Function %s, %d\n", opNode->NextLevel[0]->id->name, i);
+							
+			return;
 		}
-		return -1;
-	}
+	}		
 	
-	void initNewTable(int scope)
-	{
-		/* Binu
-		arrayScope[scope]++;
-		sIndex++;
-		st[sIndex].scope = power(scope, arrayScope[scope]);
-		*/
-		st[sIndex].no = sIndex;
-		st[sIndex].scope = scope;
+}
+	
+Node *createID_Const(char *type, char *value, int scope)
+{
+	char *val = value;
+	Node *newNode;
+	newNode = (Node*)calloc(1, sizeof(Node));
+	newNode->NType = NULL;
+	newNode->opCount = -1;
+	newNode->id = findRecord(value, type, scope);
+	newNode->nodeNo = NodeCount++;
+	return newNode;
+}
 
-		st[sIndex].ele_count = 0;		
-		st[sIndex].Elements = (Record*)calloc(MAXRECST, sizeof(Record));
-		
-		st[sIndex].parent = scopeBasedTableSearch(currentScope); 
+//AST NType
+Node *createOp(char *oper, int opCount, ...)
+{
+	va_list params;
+	Node *newNode;
+        int i;
+   	newNode = (Node*)calloc(1, sizeof(Node));
+    
+        newNode->NextLevel = (Node**)calloc(opCount, sizeof(Node*));
+   
+        newNode->NType = (char*)malloc(strlen(oper)+1);
+        strcpy(newNode->NType, oper);
+        newNode->opCount = opCount;
+	va_start(params, opCount);
+    
+    	for (i = 0; i < opCount; i++)
+	    newNode->NextLevel[i] = va_arg(params, Node*);
+    
+	va_end(params);
+    	newNode->nodeNo = NodeCount++;
+    	return newNode;
+}
+  
+void addToList(char *newVal, int flag)
+{
+	if(flag==0)
+  	{
+		strcat(argsList, ", ");
+		strcat(argsList, newVal);
 	}
-	
-	void init()
+	else
 	{
+		strcat(argsList, newVal);
+	}
+}
+  
+void clearArgsList()
+{
+    strcpy(argsList, "");
+}
+ 
+int power(int base, int exp)
+{
+	int i =0, res = 1;
+	for(i; i<exp; i++)
+	{
+		res *= base;
+	}
+	return res;
+}
+	
+void updateScope(int scope)
+{
+ //BINU	currentScope = scope;
+}
+	
+void resetDepth()
+{
+	while(top()) pop();
+	depth = 10;
+}
+	
+int scopeBasedTableSearch(int scope)
+{
+	int i = sIndex;
+	for(i; i > -1; i--)
+	{
+		if(st[i].scope == scope)
+		{
+			return i;
+		}
+	}
+	return -1;
+}
+	
+void initNewTable(int scope)
+{
+	/* Bob
+	arrayScope[scope]++;
+	sIndex++;
+	st[sIndex].scope = power(scope, arrayScope[scope]);
+	*/
+	st[sIndex].no = sIndex;
+	st[sIndex].scope = scope;
+	st[sIndex].ele_count = 0;		
+	st[sIndex].Elements = (Record*)calloc(MAXRECST, sizeof(Record));
+	
+	st[sIndex].parent = scopeBasedTableSearch(currentScope); 
+}
+	
+void init()
+{
 		int i = 0;
 		st = (SymTable*)calloc(MAXST, sizeof(SymTable));
-		// Binu arrayScope = (int*)calloc(10, sizeof(int));
-//Binu		initNewTable(1);
+		// Bob arrayScope = (int*)calloc(10, sizeof(int));
+//Bob		initNewTable(1);
 		initNewTable(0);
 		argsList = (char *)malloc(100);
 		strcpy(argsList, "");
@@ -577,8 +579,8 @@
 		}
 	}
 
-	int searchRecordInScope(const char* type, const char *name, int index)
-	{
+int searchRecordInScope(const char* type, const char *name, int index)
+{
 		int i =0;
 		for(i=0; i<st[index].ele_count; i++)
 		{
@@ -588,10 +590,10 @@
 			}	
 		}
 		return -1;
-	}
+}
 		
-	void modifyRecordID(const char *type, const char *name, int lineNo, int scope)
-	{
+void modifyRecordID(const char *type, const char *name, int lineNo, int scope)
+{
 		int i =0;
 		int index = scopeBasedTableSearch(scope);
 		if(index==0)
@@ -618,10 +620,10 @@
 			}	
 		}
 		return modifyRecordID(type, name, lineNo, st[st[index].parent].scope);
-	}
+}
 	
-	void insertRecord(const char* type, const char *name, int lineNo, int scope)
-	{ 
+void insertRecord(const char* type, const char *name, int lineNo, int scope)
+{ 
 		/*
 		int FScope = power(scope, arrayScope[scope]);
 		int index = scopeBasedTableSearch(FScope);
@@ -644,10 +646,10 @@
 		{
 			st[index].Elements[RecordIndex].lastLine = lineNo;
 		}
-	}
+}
 	
-	void checkList(const char *name, int lineNo, int scope)
-	{
+void checkList(const char *name, int lineNo, int scope)
+{
 		int index = scopeBasedTableSearch(scope);
 		int i;
 		if(index==0)
@@ -692,10 +694,10 @@
 		
 		return checkList(name, lineNo, st[st[index].parent].scope);
 
-	}
+}
 	
-	Record* findRecord(const char *name, const char *type, int scope)
-	{
+Record* findRecord(const char *name, const char *type, int scope)
+{
 		int i =0;
 		int index = scopeBasedTableSearch(scope);
 		if(index==0)
@@ -720,28 +722,28 @@
 			}	
 		}
 		return findRecord(name, type, st[st[index].parent].scope);
-	}
+}
 
-	void dispSymtable()
+void dispSymtable()
+{
+	int i = 0, j = 0;
+	
+	printf("\n----------------------------------------------------------------Symbol Table----------------------------------------------------------------\n");
+	printf("\nScope\t\t\tName\t\t\tType\t\t\t\tDeclaration\t\t\tLast Used Line\n\n");
+	for(i=0; i<=sIndex; i++)
 	{
-		int i = 0, j = 0;
-		
-		printf("\n----------------------------Symbol Table----------------------------");
-		printf("\nScope\tName\tType\t\tDeclaration\tLast Used Line\n");
-		for(i=0; i<=sIndex; i++)
+		for(j=0; j<st[i].ele_count; j++)
 		{
-			for(j=0; j<st[i].ele_count; j++)
-			{
-				printf("(%d, %d)\t%s\t%s\t%d\t\t%d\n", st[i].parent, st[i].scope, st[i].Elements[j].name, st[i].Elements[j].type, st[i].Elements[j].decLine,  st[i].Elements[j].lastLine);
-			}
+			printf("(%d, %d)\t\t\t%s\t\t\t%s\t\t\t%d\t\t\t\t%d\n", st[i].parent, st[i].scope, st[i].Elements[j].name, st[i].Elements[j].type, st[i].Elements[j].decLine,  st[i].Elements[j].lastLine);
 		}
-		
-		printf("-------------------------------------------------------------------------\n");
-		
 	}
 	
-	void ASTToArray(Node *root, int level)
-	{
+	printf("-------------------------------------------------------------------------------------------------------------------------------------------------\n");
+	
+}
+	
+void ASTToArray(Node *root, int level)
+{
 	  if(root == NULL )
 	  {
 	    return;
@@ -752,144 +754,168 @@
 	  	Tree[level][levelIndices[level]] = root;
 	  	levelIndices[level]++;
 	  }
-	  
+		  
 	  if(root->opCount > 0)
 	  {
-	 		int j;
-	 		Tree[level][levelIndices[level]] = root;
-	 		levelIndices[level]++; 
-	    for(j=0; j<root->opCount; j++)
-	    {
-	    	ASTToArray(root->NextLevel[j], level+1);
-	    }
+	  	int j;
+	 	Tree[level][levelIndices[level]] = root;
+		levelIndices[level]++; 
+	    	for(j=0; j<root->opCount; j++)
+		{
+		    	ASTToArray(root->NextLevel[j], level+1);
+		}
 	  }
-	}
+}
 	
-	void printAST(Node *root)
+void printAST(Node *root)
+{
+	printf("\n-------------------------Abstract Syntax Tree--------------------------\n");
+	ASTToArray(root, 0);
+	int j = 0, p, q, maxLevel = 0, lCount = 0;
+	
+	while(levelIndices[maxLevel] > 0) maxLevel++;
+	
+	while(levelIndices[j] > 0)
 	{
-		printf("\n-------------------------Abstract Syntax Tree--------------------------\n");
-		ASTToArray(root, 0);
-		int j = 0, p, q, maxLevel = 0, lCount = 0;
-		
-		while(levelIndices[maxLevel] > 0) maxLevel++;
-		
-		while(levelIndices[j] > 0)
+		for(q=0; q<lCount; q++)
 		{
-			for(q=0; q<lCount; q++)
-			{
-				printf(" ");
-			
-			}
-			for(p=0; p<levelIndices[j] ; p++)
-			{
-				if(Tree[j][p]->opCount == -1)
-				{
-					printf("%s  ", Tree[j][p]->id->name);
-					lCount+=strlen(Tree[j][p]->id->name);
-				}
-				else if(Tree[j][p]->opCount == 0)
-				{
-					printf("%s  ", Tree[j][p]->NType);
-					lCount+=strlen(Tree[j][p]->NType);
-				}
-				else
-				{
-					printf("%s(%d) ", Tree[j][p]->NType, Tree[j][p]->opCount);
-				}
-			}
-			j++;
-			printf("\n");
+			printf(" ");
+		
 		}
+		for(p=0; p<levelIndices[j] ; p++)
+		{
+			if(Tree[j][p]->opCount == -1)
+			{
+				printf("%s  ", Tree[j][p]->id->name);
+				lCount+=strlen(Tree[j][p]->id->name);
+			}
+			else if(Tree[j][p]->opCount == 0)
+			{
+				printf("%s  ", Tree[j][p]->NType);
+				lCount+=strlen(Tree[j][p]->NType);
+			}
+			else
+			{
+				printf("%s(%d) ", Tree[j][p]->NType, Tree[j][p]->opCount);
+			}
+		}
+		j++;
+		printf("\n");
 	}
+}
 	
-	int IsValidNumber(char * string)
+int IsValidNumber(char * string)
+{
+	for(int i = 0; i < strlen( string ); i ++)
 	{
-   for(int i = 0; i < strlen( string ); i ++)
-   {
-      //ASCII value of 0 = 48, 9 = 57. So if value is outside of numeric range then fail
-      //Checking for negative sign "-" could be added: ASCII value 45.
-      if (string[i] < 48 || string[i] > 57)
-         return 0;
-   }
+	      //ASCII value of 0 = 48, 9 = 57. So if value is outside of numeric range then fail
+	      //Checking for negative sign "-" could be added: ASCII value 45.
+	      if (string[i] < 48 || string[i] > 57)
+	      return 0;
+	}
  
-   return 1;
-	}
-	
-	int deadCodeElimination()
-	{
-		int i = 0, j = 0, flag = 1, XF=0;
-		while(flag==1)
-		{
-			
-			flag=0;
-			for(i=0; i<qIndex; i++)
-			{
-				XF=0;
-				if(!((strcmp(quad_array[i].R, "-")==0) | (strcmp(quad_array[i].Op, "Call")==0) | (strcmp(quad_array[i].Op, "Label")==0) | (strcmp(quad_array[i].Op, "goto")==0) | (strcmp(quad_array[i].Op, "If False")==0)))
-				{
-					for(j=0; j<qIndex; j++)
-					{
-							if(((strcmp(quad_array[i].R, quad_array[j].A1)==0) && (quad_array[j].I!=-1)) | ((strcmp(quad_array[i].R, quad_array[j].A2)==0) && (quad_array[j].I!=-1)))
-							{
-								XF=1;
-							}
-					}
-				
-					if((XF==0) & (quad_array[i].I != -1))
-					{
-						quad_array[i].I = -1;
-						flag=1;
-					}
-				}
-			}
-		}
-		return flag;
-	}
-		
-	void copyProp()
-    {
-        for(int i=0; i<qIndex; i++)
-            {
-                if((strcmp(quad_array[i].Op,"=")==0) && (!quad_array[i].A2))
-                {
-                    quad_array[i].R=quad_array[i].A1;
-                    quad_array[i].A1='\0';
-                }
-            }
-    }
+	return 1;
+}
 
-	void printQuads()
-	{
-		printf("\n--------------------------------Quadruples---------------------------------\n");
-		int i = 0;
+
+// Code Optimization
+	
+void commonSubexprElim()
+{
+	int i = 0, j = 0;
 		for(i=0; i<qIndex; i++)
 		{
-			if(quad_array[i].I > -1)
-				printf("%d\t%s\t%s\t%s\t%s\n", quad_array[i].I, quad_array[i].Op, quad_array[i].A1, quad_array[i].A2, quad_array[i].R);
-		}
-		printf("--------------------------------------------------------------------------\n");
-	}
-	
-	void freeAll()
-	{
-		deadCodeElimination();
-		printQuads();
-		printf("\n");
-		int i = 0, j = 0;
-		for(i=0; i<=sIndex; i++)
-		{
-			for(j=0; j<st[i].ele_count; j++)
+			for(j=i+1; j<qIndex; j++)
 			{
-				free(st[i].Elements[j].name);
-				free(st[i].Elements[j].type);	
+				if((strcmp(quad_array[i].A1, quad_array[j].A1)==0) && (strcmp(quad_array[i].A2, quad_array[j].A2)==0) && (strcmp(quad_array[i].Op, quad_array[j].Op)==0))
+				{
+					//quad_array[i].R='\0';
+					quad_array[i].I = -1;
+				}
 			}
-			free(st[i].Elements);
 		}
-		free(st);
-		free(quad_array);
-	}
+	
+}
 
-#line 893 "y.tab.c"
+int deadCodeElimination()
+{
+	int i = 0, j = 0, flag = 1, XF=0;
+	while(flag==1)
+	{
+		
+		flag=0;
+		for(i=0; i<qIndex; i++)
+		{
+			XF=0;
+			if(!((strcmp(quad_array[i].R, "-")==0) | (strcmp(quad_array[i].Op, "Call")==0) | (strcmp(quad_array[i].Op, "Label")==0) | (strcmp(quad_array[i].Op, "goto")==0) | (strcmp(quad_array[i].Op, "If False")==0)))
+			{
+				for(j=0; j<qIndex; j++)
+				{
+						if(((strcmp(quad_array[i].R, quad_array[j].A1)==0) && (quad_array[j].I!=-1)) | ((strcmp(quad_array[i].R, quad_array[j].A2)==0) && (quad_array[j].I!=-1)))
+						{
+							XF=1;
+						}
+				}
+			
+				if((XF==0) & (quad_array[i].I != -1))
+				{
+					quad_array[i].I = -1;
+					flag=1;
+				}
+			}
+		}
+	}
+	return flag;
+}
+		
+void copyProp()
+{
+	for(int i=0; i<qIndex; i++)
+	{
+		if((strcmp(quad_array[i].Op,"=")==0) && (!quad_array[i].A2))
+		{
+			quad_array[i].R=quad_array[i].A1;
+			quad_array[i].A1='\0';
+		}
+        } 
+}
+
+void printQuads()
+{
+	printf("\n--------------------------------------------------------------------Quadruples---------------------------------------------------------------------\n");
+	printf("\nLno.			Oper.			Arg1			Arg2			Res\n\n");
+	
+	int i = 0;
+	for(i=0; i<qIndex; i++)
+	{
+		if(quad_array[i].I > -1)
+			printf("%d\t\t\t%s\t\t\t%s\t\t\t%s\t\t\t%s\n", quad_array[i].I, quad_array[i].Op, quad_array[i].A1, quad_array[i].A2, quad_array[i].R);
+	}
+	printf("--------------------------------------------------------------------------------------------------------------------------------------------------\n");
+}
+
+void freeAll()
+{
+	copyProp();
+	commonSubexprElim();
+	deadCodeElimination();
+	printQuads();
+	printf("\n");
+	int i = 0, j = 0;
+	for(i=0; i<=sIndex; i++)
+	{
+		for(j=0; j<st[i].ele_count; j++)
+		{
+			free(st[i].Elements[j].name);
+			free(st[i].Elements[j].type);	
+		}
+		free(st[i].Elements);
+	}
+	free(st);
+	free(quad_array);
+}
+
+#line 919 "y.tab.c"
 
 # ifndef YY_CAST
 #  ifdef __cplusplus
@@ -1033,10 +1059,10 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 824 "grammar.y"
+#line 850 "grammar.y"
  char *text; int depth; struct ASTNode* Node;
 
-#line 1040 "y.tab.c"
+#line 1066 "y.tab.c"
 
 };
 typedef union YYSTYPE YYSTYPE;
@@ -1433,16 +1459,16 @@ static const yytype_int8 yytranslate[] =
   /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_int16 yyrline[] =
 {
-       0,   840,   840,   840,   842,   843,   845,   846,   847,   850,
-     852,   852,   852,   852,   854,   855,   856,   857,   858,   859,
-     860,   861,   863,   864,   865,   866,   867,   868,   869,   872,
-     873,   874,   875,   876,   877,   878,   879,   881,   882,   883,
-     884,   886,   887,   889,   890,   891,   892,   894,   895,   896,
-     897,   899,   901,   902,   903,   904,   905,   907,   908,   909,
-     912,   913,   915,   916,   918,   920,   922,   925,   926,   926,
-     928,   929,   931,   931,   932,   932,   933,   935,   935,   936,
-     938,   938,   938,   941,   941,   941,   943,   943,   944,   944,
-     945,   945,   946,   948,   948,   950
+       0,   866,   866,   866,   868,   869,   871,   872,   873,   876,
+     878,   878,   878,   878,   880,   881,   882,   883,   884,   885,
+     886,   887,   889,   890,   891,   892,   893,   894,   895,   898,
+     899,   900,   901,   902,   903,   904,   905,   907,   908,   909,
+     910,   912,   913,   915,   916,   917,   918,   920,   921,   922,
+     923,   925,   927,   928,   929,   930,   931,   933,   934,   935,
+     938,   939,   941,   942,   944,   946,   948,   951,   952,   952,
+     954,   955,   957,   957,   958,   958,   959,   961,   961,   962,
+     964,   964,   964,   967,   967,   967,   969,   969,   970,   970,
+     971,   971,   972,   974,   974,   976
 };
 #endif
 
@@ -2467,547 +2493,547 @@ yyreduce:
   switch (yyn)
     {
   case 2:
-#line 840 "grammar.y"
+#line 866 "grammar.y"
                 {init();}
-#line 2473 "y.tab.c"
+#line 2499 "y.tab.c"
     break;
 
   case 3:
-#line 840 "grammar.y"
+#line 866 "grammar.y"
                                                  {printf("\nValid Python Syntax\n");  /*printAST($2);*/ codeGenOp((yyvsp[-1].Node)); printQuads(); dispSymtable(); freeAll(); exit(0);}
-#line 2479 "y.tab.c"
+#line 2505 "y.tab.c"
     break;
 
   case 4:
-#line 842 "grammar.y"
+#line 868 "grammar.y"
                     {insertRecord("Constant", (yyvsp[0].text), (yylsp[0]).first_line, currentScope); (yyval.Node) = createID_Const("Constant", (yyvsp[0].text), currentScope);}
-#line 2485 "y.tab.c"
+#line 2511 "y.tab.c"
     break;
 
   case 5:
-#line 843 "grammar.y"
+#line 869 "grammar.y"
                     {insertRecord("Constant", (yyvsp[0].text), (yylsp[0]).first_line, currentScope); (yyval.Node) = createID_Const("Constant", (yyvsp[0].text), currentScope);}
-#line 2491 "y.tab.c"
+#line 2517 "y.tab.c"
     break;
 
   case 6:
-#line 845 "grammar.y"
+#line 871 "grammar.y"
             {modifyRecordID("Identifier", (yyvsp[0].text), (yylsp[0]).first_line, currentScope); (yyval.Node) = createID_Const("Identifier", (yyvsp[0].text), currentScope);}
-#line 2497 "y.tab.c"
+#line 2523 "y.tab.c"
     break;
 
   case 7:
-#line 846 "grammar.y"
+#line 872 "grammar.y"
                 {(yyval.Node) = (yyvsp[0].Node);}
-#line 2503 "y.tab.c"
+#line 2529 "y.tab.c"
     break;
 
   case 8:
-#line 847 "grammar.y"
+#line 873 "grammar.y"
                   {(yyval.Node) = (yyvsp[0].Node);}
-#line 2509 "y.tab.c"
+#line 2535 "y.tab.c"
     break;
 
   case 9:
-#line 850 "grammar.y"
+#line 876 "grammar.y"
                                      {checkList((yyvsp[-3].text), (yylsp[-3]).first_line, currentScope); (yyval.Node) = createOp("ListIndex", 2, createID_Const("ListTypeID", (yyvsp[-3].text), currentScope), (yyvsp[-1].Node));}
-#line 2515 "y.tab.c"
+#line 2541 "y.tab.c"
     break;
 
   case 10:
-#line 852 "grammar.y"
+#line 878 "grammar.y"
                              {(yyval.Node)=(yyvsp[0].Node);}
-#line 2521 "y.tab.c"
+#line 2547 "y.tab.c"
     break;
 
   case 11:
-#line 852 "grammar.y"
+#line 878 "grammar.y"
                                                             {resetDepth();}
-#line 2527 "y.tab.c"
+#line 2553 "y.tab.c"
     break;
 
   case 12:
-#line 852 "grammar.y"
+#line 878 "grammar.y"
                                                                                        {(yyval.Node) = createOp("NewLine", 2, (yyvsp[-3].Node), (yyvsp[0].Node));}
-#line 2533 "y.tab.c"
+#line 2559 "y.tab.c"
     break;
 
   case 13:
-#line 852 "grammar.y"
+#line 878 "grammar.y"
                                                                                                                                                     {(yyval.Node)=(yyvsp[-1].Node);}
-#line 2539 "y.tab.c"
+#line 2565 "y.tab.c"
     break;
 
   case 14:
-#line 854 "grammar.y"
+#line 880 "grammar.y"
                        {(yyval.Node)=(yyvsp[0].Node);}
-#line 2545 "y.tab.c"
+#line 2571 "y.tab.c"
     break;
 
   case 15:
-#line 855 "grammar.y"
+#line 881 "grammar.y"
                         {(yyval.Node)=(yyvsp[0].Node);}
-#line 2551 "y.tab.c"
+#line 2577 "y.tab.c"
     break;
 
   case 16:
-#line 856 "grammar.y"
+#line 882 "grammar.y"
                          {(yyval.Node)=(yyvsp[0].Node);}
-#line 2557 "y.tab.c"
+#line 2583 "y.tab.c"
     break;
 
   case 17:
-#line 857 "grammar.y"
+#line 883 "grammar.y"
                          {(yyval.Node)=(yyvsp[0].Node);}
-#line 2563 "y.tab.c"
+#line 2589 "y.tab.c"
     break;
 
   case 18:
-#line 858 "grammar.y"
+#line 884 "grammar.y"
                        {(yyval.Node)=(yyvsp[0].Node);}
-#line 2569 "y.tab.c"
+#line 2595 "y.tab.c"
     break;
 
   case 19:
-#line 859 "grammar.y"
+#line 885 "grammar.y"
                       {(yyval.Node)=(yyvsp[0].Node);}
-#line 2575 "y.tab.c"
+#line 2601 "y.tab.c"
     break;
 
   case 20:
-#line 860 "grammar.y"
+#line 886 "grammar.y"
                         {(yyval.Node)=(yyvsp[0].Node);}
-#line 2581 "y.tab.c"
+#line 2607 "y.tab.c"
     break;
 
   case 21:
-#line 861 "grammar.y"
+#line 887 "grammar.y"
                          {(yyval.Node)=(yyvsp[0].Node);}
-#line 2587 "y.tab.c"
+#line 2613 "y.tab.c"
     break;
 
   case 22:
-#line 863 "grammar.y"
+#line 889 "grammar.y"
                  {(yyval.Node)=(yyvsp[0].Node);}
-#line 2593 "y.tab.c"
+#line 2619 "y.tab.c"
     break;
 
   case 23:
-#line 864 "grammar.y"
+#line 890 "grammar.y"
                                        {(yyval.Node) = createOp("+", 2, (yyvsp[-2].Node), (yyvsp[0].Node));}
-#line 2599 "y.tab.c"
+#line 2625 "y.tab.c"
     break;
 
   case 24:
-#line 865 "grammar.y"
+#line 891 "grammar.y"
                                        {(yyval.Node) = createOp("-", 2, (yyvsp[-2].Node), (yyvsp[0].Node));}
-#line 2605 "y.tab.c"
+#line 2631 "y.tab.c"
     break;
 
   case 25:
-#line 866 "grammar.y"
+#line 892 "grammar.y"
                                        {(yyval.Node) = createOp("*", 2, (yyvsp[-2].Node), (yyvsp[0].Node));}
-#line 2611 "y.tab.c"
+#line 2637 "y.tab.c"
     break;
 
   case 26:
-#line 867 "grammar.y"
+#line 893 "grammar.y"
                                        {(yyval.Node) = createOp("/", 2, (yyvsp[-2].Node), (yyvsp[0].Node));}
-#line 2617 "y.tab.c"
+#line 2643 "y.tab.c"
     break;
 
   case 27:
-#line 868 "grammar.y"
+#line 894 "grammar.y"
                            {(yyval.Node) = createOp("-", 1, (yyvsp[0].Node));}
-#line 2623 "y.tab.c"
+#line 2649 "y.tab.c"
     break;
 
   case 28:
-#line 869 "grammar.y"
+#line 895 "grammar.y"
                                 {(yyval.Node) = (yyvsp[-1].Node);}
-#line 2629 "y.tab.c"
+#line 2655 "y.tab.c"
     break;
 
   case 29:
-#line 872 "grammar.y"
+#line 898 "grammar.y"
                                     {(yyval.Node) = createOp("or", 2, (yyvsp[-2].Node), (yyvsp[0].Node));}
-#line 2635 "y.tab.c"
+#line 2661 "y.tab.c"
     break;
 
   case 30:
-#line 873 "grammar.y"
+#line 899 "grammar.y"
                                     {(yyval.Node) = createOp("<", 2, (yyvsp[-2].Node), (yyvsp[0].Node));}
-#line 2641 "y.tab.c"
+#line 2667 "y.tab.c"
     break;
 
   case 31:
-#line 874 "grammar.y"
+#line 900 "grammar.y"
                                      {(yyval.Node) = createOp("and", 2, (yyvsp[-2].Node), (yyvsp[0].Node));}
-#line 2647 "y.tab.c"
+#line 2673 "y.tab.c"
     break;
 
   case 32:
-#line 875 "grammar.y"
+#line 901 "grammar.y"
                                     {(yyval.Node) = createOp(">", 2, (yyvsp[-2].Node), (yyvsp[0].Node));}
-#line 2653 "y.tab.c"
+#line 2679 "y.tab.c"
     break;
 
   case 33:
-#line 876 "grammar.y"
+#line 902 "grammar.y"
                                      {(yyval.Node) = createOp("<=", 2, (yyvsp[-2].Node), (yyvsp[0].Node));}
-#line 2659 "y.tab.c"
+#line 2685 "y.tab.c"
     break;
 
   case 34:
-#line 877 "grammar.y"
+#line 903 "grammar.y"
                                      {(yyval.Node) = createOp(">=", 2, (yyvsp[-2].Node), (yyvsp[0].Node));}
-#line 2665 "y.tab.c"
+#line 2691 "y.tab.c"
     break;
 
   case 35:
-#line 878 "grammar.y"
+#line 904 "grammar.y"
                                {checkList((yyvsp[0].text), (yylsp[0]).first_line, currentScope); (yyval.Node) = createOp("in", 2, (yyvsp[-2].Node), createID_Const("Constant", (yyvsp[0].text), currentScope));}
-#line 2671 "y.tab.c"
+#line 2697 "y.tab.c"
     break;
 
   case 36:
-#line 879 "grammar.y"
+#line 905 "grammar.y"
                      {(yyval.Node)=(yyvsp[0].Node);}
-#line 2677 "y.tab.c"
+#line 2703 "y.tab.c"
     break;
 
   case 37:
-#line 881 "grammar.y"
+#line 907 "grammar.y"
                         {(yyval.Node) = (yyvsp[0].Node);}
-#line 2683 "y.tab.c"
+#line 2709 "y.tab.c"
     break;
 
   case 38:
-#line 882 "grammar.y"
+#line 908 "grammar.y"
                                      {(yyval.Node) = createOp("==", 2, (yyvsp[-2].Node), (yyvsp[0].Node));}
-#line 2689 "y.tab.c"
+#line 2715 "y.tab.c"
     break;
 
   case 39:
-#line 883 "grammar.y"
+#line 909 "grammar.y"
                    {insertRecord("Constant", "True", (yylsp[0]).first_line, currentScope); (yyval.Node) = createID_Const("Constant", "True", currentScope);}
-#line 2695 "y.tab.c"
+#line 2721 "y.tab.c"
     break;
 
   case 40:
-#line 884 "grammar.y"
+#line 910 "grammar.y"
                     {insertRecord("Constant", "False", (yylsp[0]).first_line, currentScope); (yyval.Node) = createID_Const("Constant", "False", currentScope);}
-#line 2701 "y.tab.c"
+#line 2727 "y.tab.c"
     break;
 
   case 41:
-#line 886 "grammar.y"
+#line 912 "grammar.y"
                                 {(yyval.Node) = createOp("!", 1, (yyvsp[0].Node));}
-#line 2707 "y.tab.c"
+#line 2733 "y.tab.c"
     break;
 
   case 42:
-#line 887 "grammar.y"
+#line 913 "grammar.y"
                                  {(yyval.Node) = (yyvsp[-1].Node);}
-#line 2713 "y.tab.c"
+#line 2739 "y.tab.c"
     break;
 
   case 43:
-#line 889 "grammar.y"
+#line 915 "grammar.y"
                             {insertRecord("PackageName", (yyvsp[0].text), (yylsp[0]).first_line, currentScope); (yyval.Node) = createOp("import", 1, createID_Const("PackageName", (yyvsp[0].text), currentScope));}
-#line 2719 "y.tab.c"
+#line 2745 "y.tab.c"
     break;
 
   case 44:
-#line 890 "grammar.y"
+#line 916 "grammar.y"
                    {(yyval.Node) = createOp("pass", 0);}
-#line 2725 "y.tab.c"
+#line 2751 "y.tab.c"
     break;
 
   case 45:
-#line 891 "grammar.y"
+#line 917 "grammar.y"
                      {(yyval.Node) = createOp("break", 0);}
-#line 2731 "y.tab.c"
+#line 2757 "y.tab.c"
     break;
 
   case 46:
-#line 892 "grammar.y"
+#line 918 "grammar.y"
                        {(yyval.Node) = createOp("return", 0);}
-#line 2737 "y.tab.c"
+#line 2763 "y.tab.c"
     break;
 
   case 47:
-#line 894 "grammar.y"
+#line 920 "grammar.y"
                                    {insertRecord("Identifier", (yyvsp[-2].text), (yylsp[-2]).first_line, currentScope); (yyval.Node) = createOp("=", 2, createID_Const("Identifier", (yyvsp[-2].text), currentScope), (yyvsp[0].Node));}
-#line 2743 "y.tab.c"
+#line 2769 "y.tab.c"
     break;
 
   case 48:
-#line 895 "grammar.y"
+#line 921 "grammar.y"
                                   {insertRecord("Identifier", (yyvsp[-2].text), (yylsp[-2]).first_line, currentScope);(yyval.Node) = createOp("=", 2, createID_Const("Identifier", (yyvsp[-2].text), currentScope), (yyvsp[0].Node));}
-#line 2749 "y.tab.c"
+#line 2775 "y.tab.c"
     break;
 
   case 49:
-#line 896 "grammar.y"
+#line 922 "grammar.y"
                                     {insertRecord("Identifier", (yyvsp[-2].text), (yylsp[-2]).first_line, currentScope); (yyval.Node) = createOp("=", 2, createID_Const("Identifier", (yyvsp[-2].text), currentScope), (yyvsp[0].Node));}
-#line 2755 "y.tab.c"
+#line 2781 "y.tab.c"
     break;
 
   case 50:
-#line 897 "grammar.y"
+#line 923 "grammar.y"
                                    {insertRecord("ListTypeID", (yyvsp[-3].text), (yylsp[-3]).first_line, currentScope); (yyval.Node) = createID_Const("ListTypeID", (yyvsp[-3].text), currentScope);}
-#line 2761 "y.tab.c"
+#line 2787 "y.tab.c"
     break;
 
   case 51:
-#line 899 "grammar.y"
+#line 925 "grammar.y"
                                     {(yyval.Node) = createOp("Print", 1, (yyvsp[-1].Node));}
-#line 2767 "y.tab.c"
+#line 2793 "y.tab.c"
     break;
 
   case 52:
-#line 901 "grammar.y"
+#line 927 "grammar.y"
                              {(yyval.Node) = (yyvsp[0].Node);}
-#line 2773 "y.tab.c"
+#line 2799 "y.tab.c"
     break;
 
   case 53:
-#line 902 "grammar.y"
+#line 928 "grammar.y"
                             {(yyval.Node) = (yyvsp[0].Node);}
-#line 2779 "y.tab.c"
+#line 2805 "y.tab.c"
     break;
 
   case 54:
-#line 903 "grammar.y"
+#line 929 "grammar.y"
                            {(yyval.Node) = (yyvsp[0].Node);}
-#line 2785 "y.tab.c"
+#line 2811 "y.tab.c"
     break;
 
   case 55:
-#line 904 "grammar.y"
+#line 930 "grammar.y"
                             {(yyval.Node) = (yyvsp[0].Node);}
-#line 2791 "y.tab.c"
+#line 2817 "y.tab.c"
     break;
 
   case 56:
-#line 905 "grammar.y"
+#line 931 "grammar.y"
                              {yyerrok; yyclearin; (yyval.Node)=createOp("SyntaxError", 0);}
-#line 2797 "y.tab.c"
+#line 2823 "y.tab.c"
     break;
 
   case 57:
-#line 907 "grammar.y"
+#line 933 "grammar.y"
                     {(yyval.Node) = (yyvsp[0].Node);}
-#line 2803 "y.tab.c"
+#line 2829 "y.tab.c"
     break;
 
   case 58:
-#line 908 "grammar.y"
+#line 934 "grammar.y"
                        {(yyval.Node) = (yyvsp[0].Node);}
-#line 2809 "y.tab.c"
+#line 2835 "y.tab.c"
     break;
 
   case 59:
-#line 909 "grammar.y"
+#line 935 "grammar.y"
                              {(yyval.Node) = (yyvsp[0].Node);}
-#line 2815 "y.tab.c"
+#line 2841 "y.tab.c"
     break;
 
   case 60:
-#line 912 "grammar.y"
+#line 938 "grammar.y"
                                           {(yyval.Node) = createOp("If", 2, (yyvsp[-2].Node), (yyvsp[0].Node));}
-#line 2821 "y.tab.c"
+#line 2847 "y.tab.c"
     break;
 
   case 61:
-#line 913 "grammar.y"
+#line 939 "grammar.y"
                                                      {(yyval.Node) = createOp("If", 3, (yyvsp[-3].Node), (yyvsp[-1].Node), (yyvsp[0].Node));}
-#line 2827 "y.tab.c"
+#line 2853 "y.tab.c"
     break;
 
   case 62:
-#line 915 "grammar.y"
+#line 941 "grammar.y"
                        {(yyval.Node)= (yyvsp[0].Node);}
-#line 2833 "y.tab.c"
+#line 2859 "y.tab.c"
     break;
 
   case 63:
-#line 916 "grammar.y"
+#line 942 "grammar.y"
                                                           {(yyval.Node)= createOp("Elif", 3, (yyvsp[-3].Node), (yyvsp[-1].Node), (yyvsp[0].Node));}
-#line 2839 "y.tab.c"
+#line 2865 "y.tab.c"
     break;
 
   case 64:
-#line 918 "grammar.y"
+#line 944 "grammar.y"
                                      {(yyval.Node) = createOp("Else", 1, (yyvsp[0].Node));}
-#line 2845 "y.tab.c"
+#line 2871 "y.tab.c"
     break;
 
   case 65:
-#line 920 "grammar.y"
+#line 946 "grammar.y"
                                                 {(yyval.Node) = createOp("While", 2, (yyvsp[-2].Node), (yyvsp[0].Node));}
-#line 2851 "y.tab.c"
+#line 2877 "y.tab.c"
     break;
 
   case 66:
-#line 922 "grammar.y"
-                                                                                         { insertRecord("Identifier", (yyvsp[-9].text), (yylsp[-10]).first_line, currentScope); Node* idNode = createID_Const("Identifier", (yyvsp[-9].text), currentScope); e1 = createOp(">=", 2, idNode, (yyvsp[-5].text)); e2 = createOp("<", 2, idNode, (yyvsp[-3].text)); (yyval.Node) = createOp("For", 3, e1, e2, (yyvsp[0].Node));}
-#line 2857 "y.tab.c"
+#line 948 "grammar.y"
+                                                                                         { insertRecord("Identifier", (yyvsp[-9].text), (yylsp[-10]).first_line, currentScope); Node* idNode = createID_Const("Identifier", (yyvsp[-9].text), currentScope); e1 = createOp("=", 2, idNode, (yyvsp[-5].text)); e2 = createOp(">=", 2, idNode, (yyvsp[-5].text)); e3 = createOp("<", 2, idNode, (yyvsp[-3].text)); (yyval.Node) = createOp("For", 4, e1, e2, e3, (yyvsp[0].Node));}
+#line 2883 "y.tab.c"
     break;
 
   case 67:
-#line 925 "grammar.y"
+#line 951 "grammar.y"
                          {(yyval.Node) = (yyvsp[0].Node);}
-#line 2863 "y.tab.c"
+#line 2889 "y.tab.c"
     break;
 
   case 68:
-#line 926 "grammar.y"
-                      {/* Binu initNewTable($<depth>2); updateScope($<depth>2);*/}
-#line 2869 "y.tab.c"
+#line 952 "grammar.y"
+                      {/* Bob initNewTable($<depth>2); updateScope($<depth>2);*/}
+#line 2895 "y.tab.c"
     break;
 
   case 69:
-#line 926 "grammar.y"
-                                                                                                         {(yyval.Node) = createOp("BeginBlock", 2, (yyvsp[-1].Node), (yyvsp[0].Node));}
-#line 2875 "y.tab.c"
+#line 952 "grammar.y"
+                                                                                                        {(yyval.Node) = createOp("BeginBlock", 2, (yyvsp[-1].Node), (yyvsp[0].Node));}
+#line 2901 "y.tab.c"
     break;
 
   case 70:
-#line 928 "grammar.y"
+#line 954 "grammar.y"
                                       {(yyval.Node) = createOp("Next", 2, (yyvsp[-1].Node), (yyvsp[0].Node));}
-#line 2881 "y.tab.c"
+#line 2907 "y.tab.c"
     break;
 
   case 71:
-#line 929 "grammar.y"
+#line 955 "grammar.y"
                        {(yyval.Node) = (yyvsp[0].Node);}
-#line 2887 "y.tab.c"
+#line 2913 "y.tab.c"
     break;
 
   case 72:
-#line 931 "grammar.y"
+#line 957 "grammar.y"
                {updateScope((yyvsp[0].depth));}
-#line 2893 "y.tab.c"
+#line 2919 "y.tab.c"
     break;
 
   case 73:
-#line 931 "grammar.y"
-                                                         {(yyval.Node) = createOp("EndBlock", 1, (yyvsp[0].Node)); printf("endsuite#1\n\n");}
-#line 2899 "y.tab.c"
+#line 957 "grammar.y"
+                                                         {(yyval.Node) = createOp("EndBlock", 1, (yyvsp[0].Node));}
+#line 2925 "y.tab.c"
     break;
 
   case 74:
-#line 932 "grammar.y"
+#line 958 "grammar.y"
                {updateScope((yyvsp[0].depth));}
-#line 2905 "y.tab.c"
+#line 2931 "y.tab.c"
     break;
 
   case 75:
-#line 932 "grammar.y"
-                                         {(yyval.Node) = createOp("EndBlock", 0);printf("endsuite#2\n\n");}
-#line 2911 "y.tab.c"
+#line 958 "grammar.y"
+                                         {(yyval.Node) = createOp("EndBlock", 0);}
+#line 2937 "y.tab.c"
     break;
 
   case 76:
-#line 933 "grammar.y"
-            {(yyval.Node) = createOp("EndBlock", 0); resetDepth();printf("endsuite#3\n\n");}
-#line 2917 "y.tab.c"
+#line 959 "grammar.y"
+            {(yyval.Node) = createOp("EndBlock", 0); resetDepth();}
+#line 2943 "y.tab.c"
     break;
 
   case 77:
-#line 935 "grammar.y"
+#line 961 "grammar.y"
             {addToList((yyvsp[0].text), 1);}
-#line 2923 "y.tab.c"
+#line 2949 "y.tab.c"
     break;
 
   case 78:
-#line 935 "grammar.y"
+#line 961 "grammar.y"
                                                 {(yyval.Node) = createOp(argsList, 0); clearArgsList();}
-#line 2929 "y.tab.c"
+#line 2955 "y.tab.c"
     break;
 
   case 79:
-#line 936 "grammar.y"
+#line 962 "grammar.y"
        {(yyval.Node) = createOp("Void", 0);}
-#line 2935 "y.tab.c"
+#line 2961 "y.tab.c"
     break;
 
   case 80:
-#line 938 "grammar.y"
+#line 964 "grammar.y"
                          {addToList((yyvsp[0].text), 0);}
-#line 2941 "y.tab.c"
+#line 2967 "y.tab.c"
     break;
 
   case 83:
-#line 941 "grammar.y"
+#line 967 "grammar.y"
                          {addToList((yyvsp[-1].text), 0);}
-#line 2947 "y.tab.c"
+#line 2973 "y.tab.c"
     break;
 
   case 86:
-#line 943 "grammar.y"
+#line 969 "grammar.y"
                  {addToList((yyvsp[0].text), 1);}
-#line 2953 "y.tab.c"
+#line 2979 "y.tab.c"
     break;
 
   case 87:
-#line 943 "grammar.y"
+#line 969 "grammar.y"
                                                      {(yyval.Node) = createOp(argsList, 0); clearArgsList();}
-#line 2959 "y.tab.c"
+#line 2985 "y.tab.c"
     break;
 
   case 88:
-#line 944 "grammar.y"
+#line 970 "grammar.y"
                                                    {addToList((yyvsp[0].text), 1);}
-#line 2965 "y.tab.c"
+#line 2991 "y.tab.c"
     break;
 
   case 89:
-#line 944 "grammar.y"
+#line 970 "grammar.y"
                                                                                        {(yyval.Node) = createOp(argsList, 0); clearArgsList();}
-#line 2971 "y.tab.c"
+#line 2997 "y.tab.c"
     break;
 
   case 90:
-#line 945 "grammar.y"
+#line 971 "grammar.y"
                                                    {addToList((yyvsp[0].text), 1);}
-#line 2977 "y.tab.c"
+#line 3003 "y.tab.c"
     break;
 
   case 91:
-#line 945 "grammar.y"
+#line 971 "grammar.y"
                                                                                        {(yyval.Node) = createOp(argsList, 0); clearArgsList();}
-#line 2983 "y.tab.c"
+#line 3009 "y.tab.c"
     break;
 
   case 92:
-#line 946 "grammar.y"
+#line 972 "grammar.y"
                                           {(yyval.Node) = createOp("Void", 0);}
-#line 2989 "y.tab.c"
+#line 3015 "y.tab.c"
     break;
 
   case 93:
-#line 948 "grammar.y"
+#line 974 "grammar.y"
                       {insertRecord("Func_Name", (yyvsp[0].text), (yylsp[0]).first_line, currentScope);}
-#line 2995 "y.tab.c"
+#line 3021 "y.tab.c"
     break;
 
   case 94:
-#line 948 "grammar.y"
+#line 974 "grammar.y"
                                                                                                                            {(yyval.Node) = createOp("Func_Name", 3, createID_Const("Func_Name", (yyvsp[-6].text), currentScope), (yyvsp[-3].Node), (yyvsp[0].Node));}
-#line 3001 "y.tab.c"
+#line 3027 "y.tab.c"
     break;
 
   case 95:
-#line 950 "grammar.y"
+#line 976 "grammar.y"
                                      {(yyval.Node) = createOp("Func_Call", 2, createID_Const("Func_Name", (yyvsp[-3].text), currentScope), (yyvsp[-1].Node));}
-#line 3007 "y.tab.c"
+#line 3033 "y.tab.c"
     break;
 
 
-#line 3011 "y.tab.c"
+#line 3037 "y.tab.c"
 
       default: break;
     }
@@ -3245,7 +3271,7 @@ yyreturn:
 #endif
   return yyresult;
 }
-#line 953 "grammar.y"
+#line 979 "grammar.y"
 
 
 void yyerror(const char *msg)
@@ -3257,7 +3283,6 @@ void yyerror(const char *msg)
 
 int main()
 {
-	//printf("Enter the Expression\n");
 	yyparse();
 	return 0;
 }
