@@ -17,8 +17,8 @@ extern int top();
 extern int pop();
 	
 	
-//Bob	int currentScope = 1, previousScope = 1;
-int currentScope = 0 , previousScope = 1;
+int currentScope = -1;
+int scopeChange = 0;
 	
 // Bob	int *arrayScope = NULL;
 
@@ -35,7 +35,7 @@ typedef struct Record
 
 typedef struct SymTable
 {
-	int no;
+	//int no;
 	int ele_count;
 	int scope;
 	Record *Elements;
@@ -64,8 +64,8 @@ typedef struct Quad
 } Quad;
 	
 SymTable *st = NULL;
-int sIndex = 0, aIndex = -1, tabCount = 0, tIndex = 0 , lIndex = 0, qIndex = 0, NodeCount = 0;
-// BINU int sIndex = -1, aIndex = -1, tabCount = 0, tIndex = 0 , lIndex = 0, qIndex = 0, NodeCount = 0;
+//int sIndex = 0, aIndex = -1, tabCount = 0, tIndex = 0 , label_index = 0, qIndex = 0, NodeCount = 0;
+int sIndex = -1, aIndex = -1, tabCount = 0, tIndex = 0 , label_index = 0, qIndex = 0, NodeCount = 0;
 Node *rootNode;
 char *argsList = NULL;
 char *tString = NULL, *lString = NULL;
@@ -181,10 +181,10 @@ void codeGenOp(Node *opNode)
 	
 	if(strcmp(opNode->NType, "For")==0)
 	{
-		int temp = lIndex;
+		int temp = label_index;
 		//next level of AST
 		codeGenOp(opNode->NextLevel[0]);
-		printf("\nL%d: ", lIndex);
+		printf("\nL%d: ", label_index);
 		codeGenOp(opNode->NextLevel[1]);
 		//three address code
 		printf("If False T%d goto L%d\n", opNode->NextLevel[1]->nodeNo, temp+1);
@@ -201,18 +201,18 @@ void codeGenOp(Node *opNode)
 		printf("goto L%d\n", temp);
 		printf("L%d: ", temp+1);
 		makeQuad(makeStr(temp+1, 0), "-", "-", "Label"); 
-		lIndex = lIndex+2;
+		label_index = label_index+2;
 		return;
 	}
 
 	if(strcmp(opNode->NType, "While")==0)
 	{
-		int temp = lIndex;
+		int temp = label_index;
 		//next level of AST
-		printf("\nL%d: ", lIndex);
+		printf("\nL%d: ", label_index);
 		codeGenOp(opNode->NextLevel[0]);
 		//three address code
-		printf("If False T%d goto L%d\n", opNode->NextLevel[0]->nodeNo, lIndex+1);
+		printf("If False T%d goto L%d\n", opNode->NextLevel[0]->nodeNo, label_index+1);
 		makeQuad(makeStr(temp, 0), "-", "-", "Label");		
 		makeQuad(makeStr(temp+1, 0), makeStr(opNode->NextLevel[0]->nodeNo, 1), "-", "If False");								
 		//next level of AST
@@ -224,7 +224,7 @@ void codeGenOp(Node *opNode)
 		printf("L%d: ", temp+1);
 		fflush(stdout);
 		makeQuad(makeStr(temp+1, 0), "-", "-", "Label"); 
-		lIndex = lIndex+2;
+		label_index = label_index+2;
 		return;
 	}
 	
@@ -461,6 +461,8 @@ void resetDepth()
 	
 int scopeBasedTableSearch(int scope)
 {
+	return scope; //scope and index are same
+	/*
 	int i = sIndex;
 	for(i; i > -1; i--)
 	{
@@ -470,6 +472,7 @@ int scopeBasedTableSearch(int scope)
 		}
 	}
 	return -1;
+	*/
 }
 	
 void initNewTable(int scope)
@@ -479,12 +482,13 @@ void initNewTable(int scope)
 	sIndex++;
 	st[sIndex].scope = power(scope, arrayScope[scope]);
 	*/
-	st[sIndex].no = sIndex;
+//	st[sIndex].no = sIndex;
+	sIndex++;
 	st[sIndex].scope = scope;
 	st[sIndex].ele_count = 0;		
 	st[sIndex].Elements = (Record*)calloc(MAXRECST, sizeof(Record));
 	
-	st[sIndex].parent = scopeBasedTableSearch(currentScope); 
+	st[sIndex].parent = scopeBasedTableSearch(scope-1); 
 }
 	
 void init()
@@ -493,7 +497,7 @@ void init()
 		st = (SymTable*)calloc(MAXST, sizeof(SymTable));
 		// Bob arrayScope = (int*)calloc(10, sizeof(int));
 //Bob		initNewTable(1);
-		initNewTable(0);
+		initNewTable(++currentScope);
 		argsList = (char *)malloc(100);
 		strcpy(argsList, "");
 		tString = (char*)calloc(10, sizeof(char));
@@ -548,7 +552,8 @@ void modifyRecordID(const char *type, const char *name, int lineNo, int scope)
 				return;
 			}	
 		}
-		return modifyRecordID(type, name, lineNo, st[st[index].parent].scope);
+//		return modifyRecordID(type, name, lineNo, st[st[index].parent].scope);
+		return modifyRecordID(type, name, lineNo, scope-1);
 }
 	
 void insertRecord(const char* type, const char *name, int lineNo, int scope)
@@ -650,7 +655,8 @@ Record* findRecord(const char *name, const char *type, int scope)
 				return &(st[index].Elements[i]);
 			}	
 		}
-		return findRecord(name, type, st[st[index].parent].scope);
+//		return findRecord(name, type, st[st[index].parent].scope);
+		return findRecord(name, type, scope-1);
 }
 
 void dispSymtable()
@@ -942,18 +948,30 @@ else_stmt : T_Else T_Cln start_suite {$$ = createOp("Else", 1, $3);};
 
 while_stmt : T_While bool_exp T_Cln start_suite {$$ = createOp("While", 2, $2, $4);}; 
 
-for_stmt : T_For T_ID T_In T_Range T_OP constant T_Comma constant T_CP T_Cln start_suite { insertRecord("Identifier", $<text>2, @1.first_line, currentScope); Node* idNode = createID_Const("Identifier", $<text>2, currentScope); e1 = createOp("=", 2, idNode, $<text>6); e2 = createOp(">=", 2, idNode, $<text>6); e3 = createOp("<", 2, idNode, $<text>8); $$ = createOp("For", 4, e1, e2, e3, $11);}; 
+for_stmt : T_For T_ID T_In T_Range T_OP constant T_Comma constant T_CP T_Cln start_suite { 
+	insertRecord("Identifier", $<text>2, @1.first_line, currentScope); 
+	Node* idNode = createID_Const("Identifier", $<text>2, currentScope); 
+	e1 = createOp("=", 2, idNode, $<text>6); 
+	e2 = createOp(">=", 2, idNode, $<text>6); 
+	e3 = createOp("<", 2, idNode, $<text>8); 
+	$$ = createOp("For", 4, e1, e2, e3, $11);
+}; 
 
 
 start_suite : basic_stmt {$$ = $1;}
-            | T_NL ID {/* Bob initNewTable($<depth>2); updateScope($<depth>2);*/} finalStatements suite {$$ = createOp("BeginBlock", 2, $4, $5);};
+//            | T_NL ID {initNewTable($<depth>2); updateScope($<depth>2);} finalStatements suite {$$ = createOp("BeginBlock", 2, $4, $5);};
+            | T_NL ID {if(scopeChange) initNewTable(++currentScope); scopeChange=0;} finalStatements suite {$$ = createOp("BeginBlock", 2, $4, $5);};
 
 suite : T_NL ND finalStatements suite {$$ = createOp("Next", 2, $3, $4);}
       | T_NL end_suite {$$ = $2;};
 
-end_suite : DD {updateScope($<depth>1);} finalStatements {$$ = createOp("EndBlock", 1, $3);} 
-          | DD {updateScope($<depth>1);} {$$ = createOp("EndBlock", 0);}
+end_suite : DD {if(scopeChange) currentScope--; scopeChange=0; } finalStatements {$$ = createOp("EndBlock", 1, $3);} 
+          | DD {if(scopeChange) currentScope--; scopeChange=0;} {$$ = createOp("EndBlock", 0);}
           | {$$ = createOp("EndBlock", 0); resetDepth();};
+
+//end_suite : DD {updateScope($<depth>1);} finalStatements {$$ = createOp("EndBlock", 1, $3);} 
+//          | DD {updateScope($<depth>1);} {$$ = createOp("EndBlock", 0);}
+//          | {$$ = createOp("EndBlock", 0); resetDepth();};
 
 args : T_ID {addToList($<text>1, 1);} args_list {$$ = createOp(argsList, 0); clearArgsList();} 
      | {$$ = createOp("Void", 0);};
@@ -968,7 +986,7 @@ call_args : T_ID {addToList($<text>1, 1);} call_list {$$ = createOp(argsList, 0)
 					| T_String {addToList($<text>1, 1);} call_list {$$ = createOp(argsList, 0); clearArgsList();}	
 					| {$$ = createOp("Void", 0);};
 
-func_def : T_Def T_ID {insertRecord("Func_Name", $<text>2, @2.first_line, currentScope);} T_OP args T_CP T_Cln start_suite {$$ = createOp("Func_Name", 3, createID_Const("Func_Name", $<text>2, currentScope), $5, $8);};
+func_def : T_Def T_ID {insertRecord("Func_Name", $<text>2, @2.first_line, currentScope);scopeChange=1; } T_OP args T_CP T_Cln start_suite {$$ = createOp("Func_Name", 3, createID_Const("Func_Name", $<text>2, currentScope), $5, $8);};
 
 func_call : T_ID T_OP call_args T_CP {$$ = createOp("Func_Call", 2, createID_Const("Func_Name", $<text>1, currentScope), $3);};
 
