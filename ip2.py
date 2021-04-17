@@ -11,6 +11,7 @@ p=-1
 
 
 #whoooolivesinapineappleunderthesea="SPONGEBOB SQUAREPANTS"
+abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcd="too long"
 a = 3
 b = 4
 d = a+b

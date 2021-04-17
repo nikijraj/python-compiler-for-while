@@ -562,7 +562,7 @@ void insertRecord(const char* type, const char *name, int lineNo, int scope)
 		if(RecordIndex==-1)
 		{
 			st[index].Elements[st[index].ele_count].type = (char*)calloc(30, sizeof(char));
-			st[index].Elements[st[index].ele_count].name = (char*)calloc(20, sizeof(char));
+			st[index].Elements[st[index].ele_count].name = (char*)calloc(80, sizeof(char));
 		
 			strcpy(st[index].Elements[st[index].ele_count].type, type);	
 			strcpy(st[index].Elements[st[index].ele_count].name, name);
