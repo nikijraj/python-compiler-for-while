@@ -567,7 +567,7 @@ void insertRecord(const char* type, const char *name, int lineNo, int scope)
 		if(RecordIndex==-1)
 		{
 			st[index].Elements[st[index].ele_count].type = (char*)calloc(30, sizeof(char));
-			st[index].Elements[st[index].ele_count].name = (char*)calloc(20, sizeof(char));
+			st[index].Elements[st[index].ele_count].name = (char*)calloc(80, sizeof(char));
 		
 			strcpy(st[index].Elements[st[index].ele_count].type, type);	
 			strcpy(st[index].Elements[st[index].ele_count].name, name);
@@ -862,7 +862,7 @@ void freeAll()
 %nonassoc T_Elif
 %nonassoc T_Else
 
-%type<Node> StartDebugger args start_suite suite end_suite func_call call_args StartParse finalStatements arith_exp bool_exp term constant basic_stmt cmpd_stmt func_def list_index import_stmt pass_stmt break_stmt print_stmt if_stmt elif_stmts else_stmt for_stmt while_stmt return_stmt assign_stmt bool_term bool_factor
+%type<Node> StartDebugger args start_suite suite end_suite func_call call_args StartParse finalStatements arith_exp bool_exp term constant basic_stmt cmpd_stmt func_def list_index import_stmt pass_stmt break_stmt for_stmt while_stmt return_stmt assign_stmt bool_term bool_factor
 
 %%
 
@@ -886,7 +886,6 @@ basic_stmt : pass_stmt {$$=$1;}
            | assign_stmt {$$=$1;}
            | arith_exp {$$=$1;}
            | bool_exp {$$=$1;}
-           | print_stmt {$$=$1;}
            | return_stmt {$$=$1;};
 
 arith_exp : term {$$=$1;}
@@ -925,26 +924,15 @@ assign_stmt : T_ID T_EQL arith_exp {insertRecord("Identifier", $<text>1, @1.firs
             | T_ID  T_EQL func_call {insertRecord("Identifier", $<text>1, @1.first_line, currentScope); $$ = createOp("=", 2, createID_Const("Identifier", $<text>1, currentScope), $3);} 
             | T_ID T_EQL T_OB T_CB {insertRecord("ListTypeID", $<text>1, @1.first_line, currentScope); $$ = createID_Const("ListTypeID", $<text>1, currentScope);} ;
 	      
-print_stmt : T_Print T_OP term T_CP {$$ = createOp("Print", 1, $3);};
-
 finalStatements : basic_stmt {$$ = $1;}
                 | cmpd_stmt {$$ = $1;}
                 | func_def {$$ = $1;}
                 | func_call {$$ = $1;}
                 | error T_NL {yyerrok; yyclearin; $$=createOp("SyntaxError", 0);};
 
-cmpd_stmt : if_stmt {$$ = $1;}
-          | while_stmt {$$ = $1;}
+cmpd_stmt : while_stmt {$$ = $1;}
 		  | for_stmt {$$ = $1;};
 
-
-if_stmt : T_If bool_exp T_Cln start_suite {$$ = createOp("If", 2, $2, $4);}
-        | T_If bool_exp T_Cln start_suite elif_stmts {$$ = createOp("If", 3, $2, $4, $5);};
-
-elif_stmts : else_stmt {$$= $1;}
-           | T_Elif bool_exp T_Cln start_suite elif_stmts {$$= createOp("Elif", 3, $2, $4, $5);};
-
-else_stmt : T_Else T_Cln start_suite {$$ = createOp("Else", 1, $3);};
 
 while_stmt : T_While bool_exp T_Cln start_suite {$$ = createOp("While", 2, $2, $4);}; 
 
