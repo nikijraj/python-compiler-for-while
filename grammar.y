@@ -260,48 +260,12 @@ void codeGenOp(Node *opNode)
 			
 		strcpy(X1, makeStr(opNode->nodeNo, 1));
 		
-		/*int flag=0,i=0,j=0;
-		for(i=0; i<qIndex; i++)
-		{
-			for(j=0; j<qIndex; j++) 
-			{
-				if((strcmp(opNode->NextLevel[0]->id->name,quad_array[i].R)==0) && (strcmp(opNode->NextLevel[1]->id->name,quad_array[j].R)==0) && (strcmp(quad_array[i].A2,"-")==0) && (strcmp(quad_array[i].Op,"=")==0) && (strcmp(quad_array[j].A2,"-")==0) && (strcmp(quad_array[j].Op,"=")==0))			
-				{
-					flag=3;
-					break;
-				}
-				
-				else if((strcmp(opNode->NextLevel[0]->id->name,quad_array[j].R)==0) && (strcmp(opNode->NextLevel[1]->id->name,quad_array[i].R)==0) && (strcmp(quad_array[i].A2,"-")==0) && (strcmp(quad_array[i].Op,"=")==0) && (strcmp(quad_array[j].A2,"-")==0) && (strcmp(quad_array[j].Op,"=")==0))			
-				{
-					flag=4;
-					break;
-				}
-				
-			
-				//if(flag==0)
-				//{				
-				else if((strcmp(opNode->NextLevel[0]->id->name,quad_array[i].R)==0) && (strcmp(quad_array[i].A2,"-")==0) && (strcmp(quad_array[i].Op,"=")==0))			
-				{
-					flag=1;
-					break;
-				}
-				
-				else if((strcmp(opNode->NextLevel[1]->id->name,quad_array[i].R)==0) && (strcmp(quad_array[i].A2,"-")==0) && (strcmp(quad_array[i].Op,"=")==0))			
-				{
-					flag=2;
-					break;
-				}
-				//}
-			}
-			if(flag!=0)
-				break;
-			else
-				continue;	
-		}*/
 		
 		int l=0,r=0,i=0,j=0,flag=0;
 		for(i=0; i<qIndex; i++)
 		{
+			if( (!opNode->NextLevel[0]->id) || (!opNode->NextLevel[1]->id) )
+				break;
 			if((l!=1) && (strcmp(opNode->NextLevel[0]->id->name,quad_array[i].R)==0) && (strcmp(quad_array[i].A2,"-")==0) && (strcmp(quad_array[i].Op,"=")==0))			
 			{
 				l=1;
@@ -323,48 +287,6 @@ void codeGenOp(Node *opNode)
 			flag=2;
 		else if(r!=0 && l==0)
 			flag=3;	
-		
-		/*if(flag==1)
-		{
-			printf("T%d = %s %s T%d\n", opNode->nodeNo, quad_array[i].A1, opNode->NType, opNode->NextLevel[1]->nodeNo);
-			
-			int n=tempNum(quad_array[i].A1);
-			strcpy(X2, makeStr(n, 1));
-			strcpy(X3, makeStr(opNode->NextLevel[1]->nodeNo, 1));
-			
-		}
-		
-		else if(flag==2)
-		{
-			printf("T%d = T%d %s %s\n", opNode->nodeNo, opNode->NextLevel[0]->nodeNo, opNode->NType, quad_array[i].R);
-			
-			int n=tempNum(quad_array[i].A1);
-			strcpy(X2, makeStr(opNode->NextLevel[0]->nodeNo, 1));
-			strcpy(X3, makeStr(n, 1));
-			
-		}
-		
-		else if(flag==3)
-		{
-			printf("T%d = %s %s %s\n", opNode->nodeNo, quad_array[i].R, opNode->NType, quad_array[j].R);
-			
-			int m=tempNum(quad_array[i].A1);
-			int n=tempNum(quad_array[j].A1);
-			
-			strcpy(X2, makeStr(m, 1));
-			strcpy(X3, makeStr(n, 1));
-		}
-		
-		else if(flag==4)
-		{
-			printf("T%d = %s %s %s\n", opNode->nodeNo, quad_array[j].R, opNode->NType, quad_array[i].R);
-			
-			int m=tempNum(quad_array[i].A1);
-			int n=tempNum(quad_array[j].A1);
-			
-			strcpy(X2, makeStr(n, 1));
-			strcpy(X3, makeStr(m, 1));
-		}*/
 		
 
 		if(flag==1)
@@ -619,7 +541,7 @@ Node *createOp(char *oper, int opCount, ...)
 	va_start(params, opCount);
     
     	for (i = 0; i < opCount; i++)
-	    newNode->NextLevel[i] = va_arg(params, Node*);
+	    	newNode->NextLevel[i] = va_arg(params, Node*);
     
 	va_end(params);
     	newNode->nodeNo = NodeCount++;
