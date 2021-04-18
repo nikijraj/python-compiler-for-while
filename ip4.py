@@ -1,14 +1,14 @@
-i=1
 j=2
+i=j
 def f1():
-	i=10
+	i=j
 
 def f2():
-	j=11
+	j=i
 	def f3():
-		k=12
+		k=i
 		def f4():
-			m=22
+			m=k
 
 
 

@@ -22,7 +22,7 @@ extern int pop();
 
 int currentScope = 0;
 // Bob int currentScope = -1;
-int scopeChange = 0;
+int scopeChange = 0; //flag
 	
 //Bob
 int *arrayScope = NULL;
@@ -42,7 +42,7 @@ typedef struct SymTable
 {
 	//int no;
 	int ele_count;
-	int scope;
+	int symTableScope;
 	Record *Elements;
 	int parentScopeIndex;
 
@@ -80,18 +80,18 @@ int *levelIndices = NULL;
 Node * e1, * e2, * e3 = NULL;
 
 //function prototypes 	
-Record* findRecord(const char *name, const char *type, int scope);
-Node *createID_Const(char *value, char *type, int scope);
-int hashScope(int scope);
-void updateScope(int scope);
+Record* findRecord(const char *name, const char *type, int codeScope);
+Node *createID_Const(char *value, char *type, int codeScope);
+int hashScope(int codeScope);
+void updateScope(int codeScope);
 void resetDepth();
-int scopeBasedTableSearch(int scope);
-void initNewTable(int scope);
+int scopeBasedTableSearch(int symTableScope);
+void initNewTable(int codeScope);
 void init();
 int searchRecordInScope(const char* type, const char *name, int index);
-void insertRecord(const char* type, const char *name, int lineNo, int scope);
+void insertRecord(const char* type, const char *name, int lineNo, int codeScope);
 int searchRecordInScope(const char* type, const char *name, int index);
-void checkList(const char *name, int lineNo, int scope);
+void checkList(const char *name, int lineNo, int codeScope);
 void dispSymtable();
 void freeAll();
 void addToList(char *newVal, int flag);
@@ -392,14 +392,14 @@ void codeGenOp(Node *opNode)
 	
 }
 	
-Node *createID_Const(char *type, char *value, int scope)
+Node *createID_Const(char *type, char *value, int codeScope)
 {
 	char *val = value;
 	Node *newNode;
 	newNode = (Node*)calloc(1, sizeof(Node));
 	newNode->NType = NULL;
 	newNode->opCount = -1;
-	newNode->id = findRecord(value, type, scope);
+	newNode->id = findRecord(value, type, codeScope);
 	newNode->nodeNo = NodeCount++;
 	return newNode;
 }
@@ -445,9 +445,9 @@ void clearArgsList()
     strcpy(argsList, "");
 }
  
-int hashScope(int scope)
+int hashScope(int codeScope)
 {
-	return pow(scope, arrayScope[scope] + 1);
+	return pow(codeScope, arrayScope[codeScope] + 1);
 	/* Bob
 	int i =0, res = 1;
 	for(i; i<exp; i++)
@@ -458,10 +458,10 @@ int hashScope(int scope)
 	*/
 }
 	
-void updateScope(int scope)
+void updateScope(int codeScope)
 {
  //Bob	currentScope = scope;
- 	currentScope = scope;
+ 	currentScope = codeScope;
 }
 	
 void resetDepth()
@@ -470,13 +470,13 @@ void resetDepth()
 	depth = 10;
 }
 	
-int scopeBasedTableSearch(int scope)
+int scopeBasedTableSearch(int symTableScope)
 {
 //Bob	return scope; //scope and index are same
 	int i = sIndex;
 	for(i; i > -1; i--)
 	{
-		if(st[i].scope == scope)
+		if(st[i].symTableScope == symTableScope)
 		{
 			return i;
 		}
@@ -484,13 +484,13 @@ int scopeBasedTableSearch(int scope)
 	return -1;
 }
 	
-void initNewTable(int scope)
+void initNewTable(int codeScope)
 {
 	/* Bob */
-	arrayScope[scope]++;
+	arrayScope[codeScope]++;
 	sIndex++;
 //	st[sIndex].scope = power(scope, arrayScope[scope]);
-	st[sIndex].scope = hashScope(scope);
+	st[sIndex].symTableScope = hashScope(codeScope);
 /* Bob */
 //	st[sIndex].no = sIndex;
 //Bob	sIndex++;
@@ -503,7 +503,7 @@ void initNewTable(int scope)
 		st[sIndex].Elements = (Record*)calloc(MAXRECST, sizeof(Record));
 //Bob	}
 	
-	st[sIndex].parentScopeIndex = scopeBasedTableSearch(scope-1); 
+	st[sIndex].parentScopeIndex = scopeBasedTableSearch(codeScope-1); 
 //	st[sIndex].parentScopeIndex = scopeBasedTableSearch(currentScope); 
 }
 	
@@ -542,11 +542,11 @@ int searchRecordInScope(const char* type, const char *name, int index)
 		return -1;
 }
 		
-void modifyRecordID(const char *type, const char *name, int lineNo, int scope)
+void modifyRecordID(const char *type, const char *name, int lineNo, int codeScope)
 {
 		int i =0;
 //		int FScope = power(scope, arrayScope[scope]);
-		int FScope = hashScope(scope);
+		int FScope = hashScope(codeScope);
 		int index = scopeBasedTableSearch(FScope);
 //Bob		int index = scopeBasedTableSearch(scope);
 		if(index==0)
@@ -572,14 +572,14 @@ void modifyRecordID(const char *type, const char *name, int lineNo, int scope)
 				return;
 			}	
 		}
-		return modifyRecordID(type, name, lineNo, st[st[index].parentScopeIndex].scope);
-//		return modifyRecordID(type, name, lineNo, scope-1);
+//Bob		return modifyRecordID(type, name, lineNo, st[st[index].parentScopeIndex].scope);
+		return modifyRecordID(type, name, lineNo, codeScope-1);
 }
 	
-void insertRecord(const char* type, const char *name, int lineNo, int scope)
+void insertRecord(const char* type, const char *name, int lineNo, int codeScope)
 { 
 //		int FScope = power(scope, arrayScope[scope]);
-		int FScope = hashScope(scope);
+		int FScope = hashScope(codeScope);
 		int index = scopeBasedTableSearch(FScope);
 	//Bob	int index = scopeBasedTableSearch(scope);
 		int RecordIndex = searchRecordInScope(type, name, index);
@@ -601,10 +601,10 @@ void insertRecord(const char* type, const char *name, int lineNo, int scope)
 		}
 }
 	
-void checkList(const char *name, int lineNo, int scope)
+void checkList(const char *name, int lineNo, int codeScope)
 {
 //		int FScope = power(scope, arrayScope[scope]);
-		int FScope = hashScope(scope);
+		int FScope = hashScope(codeScope);
 		int index = scopeBasedTableSearch(FScope);
 //		int index = scopeBasedTableSearch(scope);
 		int i;
@@ -648,16 +648,16 @@ void checkList(const char *name, int lineNo, int scope)
 			}
 		}
 		
-		return checkList(name, lineNo, st[st[index].parentScopeIndex].scope);
-//Bob		return checkList(name, lineNo, scope-1);
+//Bob		return checkList(name, lineNo, st[st[index].parentScopeIndex].scope);
+		return checkList(name, lineNo, codeScope-1);
 
 }
 	
-Record* findRecord(const char *name, const char *type, int scope)
+Record* findRecord(const char *name, const char *type, int codeScope)
 {
 		int i =0;
 //		int FScope = power(scope, arrayScope[scope]);
-		int FScope = hashScope(scope);
+		int FScope = hashScope(codeScope);
 		int index = scopeBasedTableSearch(FScope);
 //Bob		int index = scopeBasedTableSearch(scope);
 		if(index==0)
@@ -670,7 +670,7 @@ Record* findRecord(const char *name, const char *type, int scope)
 					return &(st[index].Elements[i]);
 				}	
 			}
-			printf("\n%s '%s' at line %d Not Found in Symbol Table at scope %d \n", type, name, yylineno, scope);
+			printf("\n%s '%s' at line %d Not Found in Symbol Table at scope %d \n", type, name, yylineno, codeScope);
 			exit(1);
 		}
 		
@@ -681,8 +681,8 @@ Record* findRecord(const char *name, const char *type, int scope)
 				return &(st[index].Elements[i]);
 			}	
 		}
-	return findRecord(name, type, st[st[index].parentScopeIndex].scope);
-// Bob		return findRecord(name, type, scope-1);
+//Bob	return findRecord(name, type, st[st[index].parentScopeIndex].scope);
+	return findRecord(name, type, codeScope-1);
 }
 
 void dispSymtable()
@@ -690,12 +690,13 @@ void dispSymtable()
 	int i = 0, j = 0;
 	
 	printf("\n----------------------------------------------------------------Symbol Table----------------------------------------------------------------\n");
-	printf("\nScope\t\t\tName\t\t\tType\t\t\t\tDeclaration\t\t\tLast Used Line\n\n");
+	printf("\n  Scope\t\t\tName\t\t\tType\t\t\t\tDeclaration\t\t\tLast Used Line\n\n");
 	for(i=0; i<=sIndex; i++)
 	{
 		for(j=0; j<st[i].ele_count; j++)
 		{
-			printf("(%d, %d)\t\t\t%s\t\t\t%s\t\t\t%d\t\t\t\t%d\n", st[i].parentScopeIndex, st[i].scope, st[i].Elements[j].name, st[i].Elements[j].type, st[i].Elements[j].decLine,  st[i].Elements[j].lastLine);
+//Bob			printf("(%d, %d)\t\t\t%s\t\t\t%s\t\t\t%d\t\t\t\t%d\n", st[i].parentScopeIndex, st[i].symTableScope, st[i].Elements[j].name, st[i].Elements[j].type, st[i].Elements[j].decLine,  st[i].Elements[j].lastLine);
+			printf("  %d\t\t\t%s\t\t\t%s\t\t\t%d\t\t\t\t%d\n", st[i].symTableScope, st[i].Elements[j].name, st[i].Elements[j].type, st[i].Elements[j].decLine,  st[i].Elements[j].lastLine);
 		}
 	}
 	
