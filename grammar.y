@@ -3,8 +3,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <math.h>
 
 #define YYERROR_VERBOSE 1
+#define MAXARRAYSCOPE 256
 #define MAXRECST 200
 #define MAXST 100
 #define MAXCHILDREN 100
@@ -17,10 +19,13 @@ extern int top();
 extern int pop();
 	
 	
-int currentScope = -1;
+
+int currentScope = 0;
+// Bob int currentScope = -1;
 int scopeChange = 0;
 	
-// Bob	int *arrayScope = NULL;
+//Bob
+int *arrayScope = NULL;
 
 int yylex();
 void yyerror(const char*);
@@ -39,7 +44,7 @@ typedef struct SymTable
 	int ele_count;
 	int scope;
 	Record *Elements;
-	int parent;
+	int parentScopeIndex;
 
 } SymTable;
 	
@@ -64,7 +69,7 @@ typedef struct Quad
 } Quad;
 	
 SymTable *st = NULL;
-//int sIndex = 0, aIndex = -1, tabCount = 0, tIndex = 0 , label_index = 0, qIndex = 0, NodeCount = 0;
+// Bob int sIndex = 0, aIndex = -1, tabCount = 0, tIndex = 0 , label_index = 0, qIndex = 0, NodeCount = 0;
 int sIndex = -1, aIndex = -1, tabCount = 0, tIndex = 0 , label_index = 0, qIndex = 0, NodeCount = 0;
 Node *rootNode;
 char *argsList = NULL;
@@ -77,7 +82,7 @@ Node * e1, * e2, * e3 = NULL;
 //function prototypes 	
 Record* findRecord(const char *name, const char *type, int scope);
 Node *createID_Const(char *value, char *type, int scope);
-int power(int base, int exp);
+int hashScope(int scope);
 void updateScope(int scope);
 void resetDepth();
 int scopeBasedTableSearch(int scope);
@@ -113,14 +118,16 @@ char *makeStr(int no, int flag)
 	{
 			strcpy(tString, "T");
 			strcat(tString, A);
-			insertRecord("ICGTempVar", tString, -1, 0);
+			insertRecord("ICGTempVar", tString, -1, 1);
+//Bob			insertRecord("ICGTempVar", tString, -1, 0);
 			return tString;
 	}
 	else
 	{
 			strcpy(lString, "L");
 			strcat(lString, A);
-			insertRecord("ICGTempLabel", lString, -1, 0);
+			insertRecord("ICGTempLabel", lString, -1, 1);
+//Bob			insertRecord("ICGTempLabel", lString, -1, 0);
 			return lString;
 	}
 
@@ -438,19 +445,23 @@ void clearArgsList()
     strcpy(argsList, "");
 }
  
-int power(int base, int exp)
+int hashScope(int scope)
 {
+	return pow(scope, arrayScope[scope] + 1);
+	/* Bob
 	int i =0, res = 1;
 	for(i; i<exp; i++)
 	{
 		res *= base;
 	}
 	return res;
+	*/
 }
 	
 void updateScope(int scope)
 {
- //BINU	currentScope = scope;
+ //Bob	currentScope = scope;
+ 	currentScope = scope;
 }
 	
 void resetDepth()
@@ -461,8 +472,7 @@ void resetDepth()
 	
 int scopeBasedTableSearch(int scope)
 {
-	return scope; //scope and index are same
-	/*
+//Bob	return scope; //scope and index are same
 	int i = sIndex;
 	for(i; i > -1; i--)
 	{
@@ -472,30 +482,37 @@ int scopeBasedTableSearch(int scope)
 		}
 	}
 	return -1;
-	*/
 }
 	
 void initNewTable(int scope)
 {
-	/* Bob
+	/* Bob */
 	arrayScope[scope]++;
 	sIndex++;
-	st[sIndex].scope = power(scope, arrayScope[scope]);
-	*/
+//	st[sIndex].scope = power(scope, arrayScope[scope]);
+	st[sIndex].scope = hashScope(scope);
+/* Bob */
 //	st[sIndex].no = sIndex;
-	sIndex++;
-	st[sIndex].scope = scope;
-	st[sIndex].ele_count = 0;		
-	st[sIndex].Elements = (Record*)calloc(MAXRECST, sizeof(Record));
+//Bob	sIndex++;
+//Bob	sIndex=scope;
+//Bob
+// Bob	if(st[sIndex].ele_count ==0) // create new only if this is empty
+//Bob	{
+//Bob		st[sIndex].scope = scope;
+		st[sIndex].ele_count = 0;		
+		st[sIndex].Elements = (Record*)calloc(MAXRECST, sizeof(Record));
+//Bob	}
 	
-	st[sIndex].parent = scopeBasedTableSearch(scope-1); 
+	st[sIndex].parentScopeIndex = scopeBasedTableSearch(scope-1); 
+//	st[sIndex].parentScopeIndex = scopeBasedTableSearch(currentScope); 
 }
 	
 void init()
 {
 		int i = 0;
 		st = (SymTable*)calloc(MAXST, sizeof(SymTable));
-		// Bob arrayScope = (int*)calloc(10, sizeof(int));
+		//Bob
+		arrayScope = (int*)calloc(MAXARRAYSCOPE, sizeof(int));
 //Bob		initNewTable(1);
 		initNewTable(++currentScope);
 		argsList = (char *)malloc(100);
@@ -515,7 +532,7 @@ void init()
 int searchRecordInScope(const char* type, const char *name, int index)
 {
 		int i =0;
-		for(i=0; i<st[index].ele_count; i++)
+		for(i=0; (index>=0) && i<st[index].ele_count; i++)
 		{
 			if((strcmp(st[index].Elements[i].type, type)==0) && (strcmp(st[index].Elements[i].name, name)==0))
 			{
@@ -528,7 +545,10 @@ int searchRecordInScope(const char* type, const char *name, int index)
 void modifyRecordID(const char *type, const char *name, int lineNo, int scope)
 {
 		int i =0;
-		int index = scopeBasedTableSearch(scope);
+//		int FScope = power(scope, arrayScope[scope]);
+		int FScope = hashScope(scope);
+		int index = scopeBasedTableSearch(FScope);
+//Bob		int index = scopeBasedTableSearch(scope);
 		if(index==0)
 		{
 			for(i=0; i<st[index].ele_count; i++)
@@ -552,17 +572,16 @@ void modifyRecordID(const char *type, const char *name, int lineNo, int scope)
 				return;
 			}	
 		}
-//		return modifyRecordID(type, name, lineNo, st[st[index].parent].scope);
-		return modifyRecordID(type, name, lineNo, scope-1);
+		return modifyRecordID(type, name, lineNo, st[st[index].parentScopeIndex].scope);
+//		return modifyRecordID(type, name, lineNo, scope-1);
 }
 	
 void insertRecord(const char* type, const char *name, int lineNo, int scope)
 { 
-		/*
-		int FScope = power(scope, arrayScope[scope]);
+//		int FScope = power(scope, arrayScope[scope]);
+		int FScope = hashScope(scope);
 		int index = scopeBasedTableSearch(FScope);
-		*/
-		int index = scopeBasedTableSearch(scope);
+	//Bob	int index = scopeBasedTableSearch(scope);
 		int RecordIndex = searchRecordInScope(type, name, index);
 		if(RecordIndex==-1)
 		{
@@ -584,7 +603,10 @@ void insertRecord(const char* type, const char *name, int lineNo, int scope)
 	
 void checkList(const char *name, int lineNo, int scope)
 {
-		int index = scopeBasedTableSearch(scope);
+//		int FScope = power(scope, arrayScope[scope]);
+		int FScope = hashScope(scope);
+		int index = scopeBasedTableSearch(FScope);
+//		int index = scopeBasedTableSearch(scope);
 		int i;
 		if(index==0)
 		{
@@ -626,14 +648,18 @@ void checkList(const char *name, int lineNo, int scope)
 			}
 		}
 		
-		return checkList(name, lineNo, st[st[index].parent].scope);
+		return checkList(name, lineNo, st[st[index].parentScopeIndex].scope);
+//Bob		return checkList(name, lineNo, scope-1);
 
 }
 	
 Record* findRecord(const char *name, const char *type, int scope)
 {
 		int i =0;
-		int index = scopeBasedTableSearch(scope);
+//		int FScope = power(scope, arrayScope[scope]);
+		int FScope = hashScope(scope);
+		int index = scopeBasedTableSearch(FScope);
+//Bob		int index = scopeBasedTableSearch(scope);
 		if(index==0)
 		{
 			for(i=0; i<st[index].ele_count; i++)
@@ -655,8 +681,8 @@ Record* findRecord(const char *name, const char *type, int scope)
 				return &(st[index].Elements[i]);
 			}	
 		}
-//		return findRecord(name, type, st[st[index].parent].scope);
-		return findRecord(name, type, scope-1);
+	return findRecord(name, type, st[st[index].parentScopeIndex].scope);
+// Bob		return findRecord(name, type, scope-1);
 }
 
 void dispSymtable()
@@ -669,7 +695,7 @@ void dispSymtable()
 	{
 		for(j=0; j<st[i].ele_count; j++)
 		{
-			printf("(%d, %d)\t\t\t%s\t\t\t%s\t\t\t%d\t\t\t\t%d\n", st[i].parent, st[i].scope, st[i].Elements[j].name, st[i].Elements[j].type, st[i].Elements[j].decLine,  st[i].Elements[j].lastLine);
+			printf("(%d, %d)\t\t\t%s\t\t\t%s\t\t\t%d\t\t\t\t%d\n", st[i].parentScopeIndex, st[i].scope, st[i].Elements[j].name, st[i].Elements[j].type, st[i].Elements[j].decLine,  st[i].Elements[j].lastLine);
 		}
 	}
 	
@@ -947,19 +973,19 @@ for_stmt : T_For T_ID T_In T_Range T_OP constant T_Comma constant T_CP T_Cln sta
 
 
 start_suite : basic_stmt {$$ = $1;}
-//            | T_NL ID {initNewTable($<depth>2); updateScope($<depth>2);} finalStatements suite {$$ = createOp("BeginBlock", 2, $4, $5);};
-            | T_NL ID {if(scopeChange) initNewTable(++currentScope); scopeChange=0;} finalStatements suite {$$ = createOp("BeginBlock", 2, $4, $5);};
+            | T_NL ID {
+				if(scopeChange) {
+					initNewTable(currentScope+1); currentScope++; 
+				}
+			} 
+			finalStatements suite {$$ = createOp("BeginBlock", 2, $4, $5);};
 
 suite : T_NL ND finalStatements suite {$$ = createOp("Next", 2, $3, $4);}
       | T_NL end_suite {$$ = $2;};
 
-end_suite : DD {if(scopeChange) currentScope--; scopeChange=0; } finalStatements {$$ = createOp("EndBlock", 1, $3);} 
-          | DD {if(scopeChange) currentScope--; scopeChange=0;} {$$ = createOp("EndBlock", 0);}
-          | {$$ = createOp("EndBlock", 0); resetDepth();};
-
-//end_suite : DD {updateScope($<depth>1);} finalStatements {$$ = createOp("EndBlock", 1, $3);} 
-//          | DD {updateScope($<depth>1);} {$$ = createOp("EndBlock", 0);}
-//          | {$$ = createOp("EndBlock", 0); resetDepth();};
+end_suite : DD {if(scopeChange) { currentScope--; scopeChange-- ;}  } finalStatements {$$ = createOp("EndBlock", 1, $3);} 
+          | DD { if(scopeChange) { currentScope--; scopeChange-- ;} } {$$ = createOp("EndBlock", 0);}
+          | { if(scopeChange) {currentScope--; scopeChange-- ;} $$ = createOp("EndBlock", 0); resetDepth();};
 
 args : T_ID {addToList($<text>1, 1);} args_list {$$ = createOp(argsList, 0); clearArgsList();} 
      | {$$ = createOp("Void", 0);};
@@ -974,7 +1000,11 @@ call_args : T_ID {addToList($<text>1, 1);} call_list {$$ = createOp(argsList, 0)
 					| T_String {addToList($<text>1, 1);} call_list {$$ = createOp(argsList, 0); clearArgsList();}	
 					| {$$ = createOp("Void", 0);};
 
-func_def : T_Def T_ID {insertRecord("Func_Name", $<text>2, @2.first_line, currentScope);scopeChange=1; } T_OP args T_CP T_Cln start_suite {$$ = createOp("Func_Name", 3, createID_Const("Func_Name", $<text>2, currentScope), $5, $8);};
+func_def : T_Def T_ID {
+	insertRecord("Func_Name", $<text>2, @2.first_line, currentScope);
+	scopeChange++ ; } 
+	T_OP args T_CP T_Cln start_suite {
+	$$ = createOp("Func_Name", 3, createID_Const("Func_Name", $<text>2, currentScope), $5, $8);};
 
 func_call : T_ID T_OP call_args T_CP {$$ = createOp("Func_Call", 2, createID_Const("Func_Name", $<text>1, currentScope), $3);};
 
