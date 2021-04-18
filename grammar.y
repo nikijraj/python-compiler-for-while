@@ -963,14 +963,14 @@ cmpd_stmt : while_stmt {$$ = $1;}
 
 while_stmt : T_While bool_exp T_Cln start_suite {$$ = createOp("While", 2, $2, $4);}; 
 
-for_stmt : T_For T_ID T_In T_Range T_OP constant T_Comma constant T_CP T_Cln start_suite { 
+for_stmt : T_For T_ID T_In T_Range T_OP term T_Comma term T_CP T_Cln start_suite { 
 	insertRecord("Identifier", $<text>2, @1.first_line, currentScope); 
 	Node* idNode = createID_Const("Identifier", $<text>2, currentScope); 
 	e1 = createOp("=", 2, idNode, $<text>6); 
 	e2 = createOp(">=", 2, idNode, $<text>6); 
 	e3 = createOp("<", 2, idNode, $<text>8); 
 	$$ = createOp("For", 4, e1, e2, e3, $11);
-}; 
+} 
 
 
 start_suite : basic_stmt {$$ = $1;}
