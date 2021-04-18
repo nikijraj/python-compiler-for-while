@@ -97,6 +97,32 @@ void freeAll();
 void addToList(char *newVal, int flag);
 void clearArgsList();
 int isBinOp(char *Op);
+int tempNum(char* arr);
+int digi(char* arr);
+void optimization();
+
+int digi(char* arr)
+{
+	int i =0, l=sizeof(arr);
+	char ret[l];
+	for(i=0;i<l;i++)
+	{
+		ret[i]=arr[i];
+	}
+	return atoi(ret);
+}
+
+int tempNum(char* arr)
+{
+	int i =0, l=sizeof(arr);
+	int ll=l-1;
+	char ret[ll];
+	for(i=1;i<l;i++)
+	{
+		ret[i-1]=arr[i];
+	}
+	return atoi(ret);
+}
 
 void Xitoa(int num, char *str)
 {
@@ -165,7 +191,7 @@ int isBinOp(char *Op)
 				return 0;
 			}
 }
-		
+
 void codeGenOp(Node *opNode)
 {
 	int i=0;
@@ -180,9 +206,208 @@ void codeGenOp(Node *opNode)
 		if((strcmp(opNode->id->type, "Identifier")==0) || (strcmp(opNode->id->type, "Constant")==0))
 		{
 			//three address code
-			printf("T%d = %s\n", opNode->nodeNo, opNode->id->name);
-			makeQuad(makeStr(opNode->nodeNo, 1), opNode->id->name, "-", "=");
+			
+			int flag=0,i=0;
+			for(i=0; i<qIndex; i++)
+			{
+				if((strcmp(opNode->id->name,quad_array[i].R)==0) && (strcmp(quad_array[i].A2,"-")==0) && (strcmp(quad_array[i].Op,"=")==0))			
+					{
+						flag=1;
+						break;
+					}
+			
+			}
+			
+			if(flag==1)
+			{
+				printf("%s = %s\n",quad_array[i].A1, opNode->id->name);
+				
+				int n=tempNum(quad_array[i].A1);
+				makeQuad(makeStr(n,1), opNode->id->name, "-", "=");
+					
+			}
+			
+			else
+			{	
+				printf("T%d = %s\n", opNode->nodeNo, opNode->id->name);
+				makeQuad(makeStr(opNode->nodeNo, 1), opNode->id->name, "-", "=");
+			}
 		}
+		return;
+	}
+	
+	if(strcmp(opNode->NType, "=")==0)
+	{
+		codeGenOp(opNode->NextLevel[1]); 
+	
+		printf("%s = T%d\n", opNode->NextLevel[0]->id->name, opNode->NextLevel[1]->nodeNo);
+		makeQuad(opNode->NextLevel[0]->id->name, makeStr(opNode->NextLevel[1]->nodeNo, 1), "-", opNode->NType);
+		
+		return;
+	}
+	
+	if(isBinOp(opNode->NType)==1)
+	{
+		//node has two children
+		
+		codeGenOp(opNode->NextLevel[0]);
+		codeGenOp(opNode->NextLevel[1]);
+				
+		char *X1 = (char*)malloc(10);
+		char *X2 = (char*)malloc(10);
+		char *X3 = (char*)malloc(10);
+		
+			
+		strcpy(X1, makeStr(opNode->nodeNo, 1));
+		
+		/*int flag=0,i=0,j=0;
+		for(i=0; i<qIndex; i++)
+		{
+			for(j=0; j<qIndex; j++) 
+			{
+				if((strcmp(opNode->NextLevel[0]->id->name,quad_array[i].R)==0) && (strcmp(opNode->NextLevel[1]->id->name,quad_array[j].R)==0) && (strcmp(quad_array[i].A2,"-")==0) && (strcmp(quad_array[i].Op,"=")==0) && (strcmp(quad_array[j].A2,"-")==0) && (strcmp(quad_array[j].Op,"=")==0))			
+				{
+					flag=3;
+					break;
+				}
+				
+				else if((strcmp(opNode->NextLevel[0]->id->name,quad_array[j].R)==0) && (strcmp(opNode->NextLevel[1]->id->name,quad_array[i].R)==0) && (strcmp(quad_array[i].A2,"-")==0) && (strcmp(quad_array[i].Op,"=")==0) && (strcmp(quad_array[j].A2,"-")==0) && (strcmp(quad_array[j].Op,"=")==0))			
+				{
+					flag=4;
+					break;
+				}
+				
+			
+				//if(flag==0)
+				//{				
+				else if((strcmp(opNode->NextLevel[0]->id->name,quad_array[i].R)==0) && (strcmp(quad_array[i].A2,"-")==0) && (strcmp(quad_array[i].Op,"=")==0))			
+				{
+					flag=1;
+					break;
+				}
+				
+				else if((strcmp(opNode->NextLevel[1]->id->name,quad_array[i].R)==0) && (strcmp(quad_array[i].A2,"-")==0) && (strcmp(quad_array[i].Op,"=")==0))			
+				{
+					flag=2;
+					break;
+				}
+				//}
+			}
+			if(flag!=0)
+				break;
+			else
+				continue;	
+		}*/
+		
+		int l=0,r=0,i=0,j=0,flag=0;
+		for(i=0; i<qIndex; i++)
+		{
+			if((l!=1) && (strcmp(opNode->NextLevel[0]->id->name,quad_array[i].R)==0) && (strcmp(quad_array[i].A2,"-")==0) && (strcmp(quad_array[i].Op,"=")==0))			
+			{
+				l=1;
+				j=i;
+			}
+				
+			if((r!=1) && (strcmp(opNode->NextLevel[1]->id->name,quad_array[i].R)==0) && (strcmp(quad_array[i].A2,"-")==0) && (strcmp(quad_array[i].Op,"=")==0))			
+			{
+				r=1;
+			}
+			
+			if(l!=0 && r!=0)
+				break;
+			
+		}	
+		if(l==1 && r==1)
+			flag=1;
+		else if(r==0 && l!=0)
+			flag=2;
+		else if(r!=0 && l==0)
+			flag=3;	
+		
+		/*if(flag==1)
+		{
+			printf("T%d = %s %s T%d\n", opNode->nodeNo, quad_array[i].A1, opNode->NType, opNode->NextLevel[1]->nodeNo);
+			
+			int n=tempNum(quad_array[i].A1);
+			strcpy(X2, makeStr(n, 1));
+			strcpy(X3, makeStr(opNode->NextLevel[1]->nodeNo, 1));
+			
+		}
+		
+		else if(flag==2)
+		{
+			printf("T%d = T%d %s %s\n", opNode->nodeNo, opNode->NextLevel[0]->nodeNo, opNode->NType, quad_array[i].R);
+			
+			int n=tempNum(quad_array[i].A1);
+			strcpy(X2, makeStr(opNode->NextLevel[0]->nodeNo, 1));
+			strcpy(X3, makeStr(n, 1));
+			
+		}
+		
+		else if(flag==3)
+		{
+			printf("T%d = %s %s %s\n", opNode->nodeNo, quad_array[i].R, opNode->NType, quad_array[j].R);
+			
+			int m=tempNum(quad_array[i].A1);
+			int n=tempNum(quad_array[j].A1);
+			
+			strcpy(X2, makeStr(m, 1));
+			strcpy(X3, makeStr(n, 1));
+		}
+		
+		else if(flag==4)
+		{
+			printf("T%d = %s %s %s\n", opNode->nodeNo, quad_array[j].R, opNode->NType, quad_array[i].R);
+			
+			int m=tempNum(quad_array[i].A1);
+			int n=tempNum(quad_array[j].A1);
+			
+			strcpy(X2, makeStr(n, 1));
+			strcpy(X3, makeStr(m, 1));
+		}*/
+		
+
+		if(flag==1)
+		{
+			printf("T%d = %s %s %s\n", opNode->nodeNo, quad_array[j].A1, opNode->NType, quad_array[i].A1);
+			
+			int m=tempNum(quad_array[i].A1);
+			int n=tempNum(quad_array[j].A1);
+			
+			strcpy(X2, makeStr(n, 1));
+			strcpy(X3, makeStr(m, 1));	
+		}
+		
+		else if(flag==2)
+		{
+			printf("T%d = %s %s T%d\n", opNode->nodeNo, quad_array[j].A1, opNode->NType, opNode->NextLevel[1]->nodeNo);
+			
+			int n=tempNum(quad_array[j].A1);
+			strcpy(X2, makeStr(n, 1));
+			strcpy(X3, makeStr(opNode->NextLevel[1]->nodeNo, 1));	
+		}
+		
+		else if(flag==3)
+		{
+			printf("T%d = T%d %s %s\n", opNode->nodeNo, opNode->NextLevel[0]->nodeNo, opNode->NType, quad_array[i].A1);
+			
+			int n=tempNum(quad_array[j].A1);
+			strcpy(X2, makeStr(opNode->NextLevel[0]->nodeNo, 1));
+			strcpy(X3, makeStr(n, 1));	
+		}	
+		
+		else
+		{		
+			strcpy(X2, makeStr(opNode->NextLevel[0]->nodeNo, 1));
+			strcpy(X3, makeStr(opNode->NextLevel[1]->nodeNo, 1));
+			printf("T%d = T%d %s T%d\n", opNode->nodeNo, opNode->NextLevel[0]->nodeNo, opNode->NType, opNode->NextLevel[1]->nodeNo);
+		}
+			
+		makeQuad(X1, X2, X3, opNode->NType);
+		free(X1);
+		free(X2);
+		free(X3);
+		
 		return;
 	}
 	
@@ -273,26 +498,6 @@ void codeGenOp(Node *opNode)
 		return;
 	}
 	
-	if(isBinOp(opNode->NType)==1)
-	{
-		//node has two children
-		codeGenOp(opNode->NextLevel[0]);
-		codeGenOp(opNode->NextLevel[1]);
-		char *X1 = (char*)malloc(10);
-		char *X2 = (char*)malloc(10);
-		char *X3 = (char*)malloc(10);
-		
-		strcpy(X1, makeStr(opNode->nodeNo, 1));
-		strcpy(X2, makeStr(opNode->NextLevel[0]->nodeNo, 1));
-		strcpy(X3, makeStr(opNode->NextLevel[1]->nodeNo, 1));
-
-		printf("T%d = T%d %s T%d\n", opNode->nodeNo, opNode->NextLevel[0]->nodeNo, opNode->NType, opNode->NextLevel[1]->nodeNo);
-		makeQuad(X1, X2, X3, opNode->NType);
-		free(X1);
-		free(X2);
-		free(X3);
-		return;
-	}
 		
 	if(strcmp(opNode->NType, "-")==0)
 	{
@@ -343,13 +548,6 @@ void codeGenOp(Node *opNode)
 		return;
 	}
 	
-	if(strcmp(opNode->NType, "=")==0)
-	{
-		codeGenOp(opNode->NextLevel[1]);
-		printf("%s = T%d\n", opNode->NextLevel[0]->id->name, opNode->NextLevel[1]->nodeNo);
-		makeQuad(opNode->NextLevel[0]->id->name, makeStr(opNode->NextLevel[1]->nodeNo, 1), "-", opNode->NType);
-		return;
-	}
 		
 	if(strcmp(opNode->NType, "Func_Name")==0)
 	{
@@ -391,6 +589,7 @@ void codeGenOp(Node *opNode)
 	}		
 	
 }
+
 	
 Node *createID_Const(char *type, char *value, int codeScope)
 {
@@ -688,7 +887,7 @@ Record* findRecord(const char *name, const char *type, int codeScope)
 void dispSymtable()
 {
 	int i = 0, j = 0;
-	
+
 	printf("\n----------------------------------------------------------------Symbol Table----------------------------------------------------------------\n");
 	printf("\n  Scope\t\t\tName\t\t\tType\t\t\t\tDeclaration\t\t\tLast Used Line\n\n");
 	for(i=0; i<=sIndex; i++)
@@ -699,11 +898,12 @@ void dispSymtable()
 			printf("  %d\t\t\t%s\t\t\t%s\t\t\t%d\t\t\t\t%d\n", st[i].symTableScope, st[i].Elements[j].name, st[i].Elements[j].type, st[i].Elements[j].decLine,  st[i].Elements[j].lastLine);
 		}
 	}
-	
+
 	printf("-------------------------------------------------------------------------------------------------------------------------------------------------\n");
-	
+
 }
-	
+
+
 void ASTToArray(Node *root, int level)
 {
 	  if(root == NULL )
@@ -731,7 +931,9 @@ void ASTToArray(Node *root, int level)
 	
 void printAST(Node *root)
 {
-	printf("\n-------------------------Abstract Syntax Tree--------------------------\n");
+	
+	printf("\n-------------------------------------------------------------Abstract Syntax Tree------------------------------------------------\n");
+	
 	ASTToArray(root, 0);
 	int j = 0, p, q, maxLevel = 0, lCount = 0;
 	
@@ -778,9 +980,8 @@ int IsValidNumber(char * string)
 	return 1;
 }
 
-
 // Code Optimization
-	
+
 void commonSubexprElim()
 {
 	int i = 0, j = 0;
@@ -791,11 +992,11 @@ void commonSubexprElim()
 				if((strcmp(quad_array[i].A1, quad_array[j].A1)==0) && (strcmp(quad_array[i].A2, quad_array[j].A2)==0) && (strcmp(quad_array[i].Op, quad_array[j].Op)==0))
 				{
 					//quad_array[i].R='\0';
-					quad_array[i].I = -1;
+					quad_array[j].I = -1;
 				}
 			}
 		}
-	
+
 }
 
 int deadCodeElimination()
@@ -803,7 +1004,7 @@ int deadCodeElimination()
 	int i = 0, j = 0, flag = 1, XF=0;
 	while(flag==1)
 	{
-		
+
 		flag=0;
 		for(i=0; i<qIndex; i++)
 		{
@@ -817,7 +1018,7 @@ int deadCodeElimination()
 							XF=1;
 						}
 				}
-			
+
 				if((XF==0) & (quad_array[i].I != -1))
 				{
 					quad_array[i].I = -1;
@@ -828,24 +1029,43 @@ int deadCodeElimination()
 	}
 	return flag;
 }
-		
+
 void copyProp()
 {
 	for(int i=0; i<qIndex; i++)
 	{
-		if((strcmp(quad_array[i].Op,"=")==0) && (!quad_array[i].A2))
+		if((strcmp(quad_array[i].Op,"=")==0) && (strcmp(quad_array[i].A1,"-")==1) && (strcmp(quad_array[i].A2,"-")==0))
 		{
 			quad_array[i].R=quad_array[i].A1;
-			quad_array[i].A1='\0';
+			quad_array[i].A1="-";
 		}
-        } 
+        }
+}
+
+void strenRed()
+{
+	for(int i=0; i<qIndex; i++)
+	{
+		if((strcmp(quad_array[i].Op,"*")==0) && (atoi(quad_array[i].A2)==2) )
+		{
+			strcpy(quad_array[i].Op,"<<");
+			strcpy(quad_array[i].A2,"1");
+		}
+		if((strcmp(quad_array[i].Op,"/")==0) && (digi(quad_array[i].A2)==2))
+		{
+			strcpy(quad_array[i].Op,"<<");
+			strcpy(quad_array[i].A2,"1");
+			//makeQuad(quad_array[i].R,quad_array[i].A1,"1","<<");
+		}
+        }
 }
 
 void printQuads()
 {
+	printf("\n--------------------------------------------------------------------------------------------------------------------------------------------------\n");
 	printf("\n--------------------------------------------------------------------Quadruples---------------------------------------------------------------------\n");
 	printf("\nLno.			Oper.			Arg1			Arg2			Res\n\n");
-	
+
 	int i = 0;
 	for(i=0; i<qIndex; i++)
 	{
@@ -855,26 +1075,33 @@ void printQuads()
 	printf("--------------------------------------------------------------------------------------------------------------------------------------------------\n");
 }
 
-void freeAll()
+void optimization()
 {
-	copyProp();
-	commonSubexprElim();
-	deadCodeElimination();
+	//copyProp();
+	strenRed();
+	//commonSubexprElim();
+	//deadCodeElimination();
+
 	printQuads();
 	printf("\n");
+}
+
+void freeAll()
+{
 	int i = 0, j = 0;
 	for(i=0; i<=sIndex; i++)
 	{
 		for(j=0; j<st[i].ele_count; j++)
 		{
 			free(st[i].Elements[j].name);
-			free(st[i].Elements[j].type);	
+			free(st[i].Elements[j].type);
 		}
 		free(st[i].Elements);
 	}
 	free(st);
 	free(quad_array);
 }
+
 %}
 
 %union { char *text; int depth; struct ASTNode* Node;};
@@ -893,7 +1120,7 @@ void freeAll()
 
 %%
 
-StartDebugger : {init();} StartParse T_EndOfFile {printf("\nValid Python Syntax\n");  /*printAST($2);*/ codeGenOp($2); printQuads(); dispSymtable(); freeAll(); exit(0);} ;
+StartDebugger : {init();} StartParse T_EndOfFile {printf("\n-------------------------------------------------------------------------------------------------------------------------------------------------\nValid Python Syntax\n\n-------------------------------------------------------------Three Address Code--------------------------------------------------------------\n");  /*printAST($2);*/ codeGenOp($2); printQuads(); dispSymtable(); optimization(); freeAll(); exit(0);} ;
 
 constant : T_Number {insertRecord("Constant", $<text>1, @1.first_line, currentScope); $$ = createID_Const("Constant", $<text>1, currentScope);}
          | T_String {insertRecord("Constant", $<text>1, @1.first_line, currentScope); $$ = createID_Const("Constant", $<text>1, currentScope);}
