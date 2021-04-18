@@ -118,16 +118,16 @@ char *makeStr(int no, int flag)
 	{
 			strcpy(tString, "T");
 			strcat(tString, A);
-			insertRecord("ICGTempVar", tString, -1, 1);
-//Bob			insertRecord("ICGTempVar", tString, -1, 0);
+			insertRecord("TempVar", tString, -1, 1);
+//Bob			insertRecord("TempVar", tString, -1, 0);
 			return tString;
 	}
 	else
 	{
 			strcpy(lString, "L");
 			strcat(lString, A);
-			insertRecord("ICGTempLabel", lString, -1, 1);
-//Bob			insertRecord("ICGTempLabel", lString, -1, 0);
+			insertRecord("TempLabel", lString, -1, 1);
+//Bob			insertRecord("TempLabel", lString, -1, 0);
 			return lString;
 	}
 
@@ -889,7 +889,7 @@ void freeAll()
 %nonassoc T_Elif
 %nonassoc T_Else
 
-%type<Node> StartDebugger args start_suite suite end_suite func_call call_args StartParse finalStatements arith_exp bool_exp term constant basic_stmt cmpd_stmt func_def list_index import_stmt pass_stmt break_stmt for_stmt while_stmt return_stmt assign_stmt bool_term bool_factor
+%type<Node> StartDebugger args begin_block block end_block func_call call_args StartParse finalStatements arith_exp bool_exp term constant basic_stmt cmpd_stmt func_def list_index import_stmt pass_stmt break_stmt for_stmt while_stmt return_stmt assign_stmt bool_term bool_factor
 
 %%
 
@@ -963,9 +963,9 @@ cmpd_stmt : while_stmt {$$ = $1;}
 		  | for_stmt {$$ = $1;};
 
 
-while_stmt : T_While bool_exp T_Cln start_suite {$$ = createOp("While", 2, $2, $4);}; 
+while_stmt : T_While bool_exp T_Cln begin_block {$$ = createOp("While", 2, $2, $4);}; 
 
-for_stmt : T_For T_ID T_In T_Range T_OP term T_Comma term T_CP T_Cln start_suite { 
+for_stmt : T_For T_ID T_In T_Range T_OP term T_Comma term T_CP T_Cln begin_block { 
 	insertRecord("Identifier", $<text>2, @1.first_line, currentScope); 
 	Node* idNode = createID_Const("Identifier", $<text>2, currentScope); 
 	e1 = createOp("=", 2, idNode, $<text>6); 
@@ -975,18 +975,18 @@ for_stmt : T_For T_ID T_In T_Range T_OP term T_Comma term T_CP T_Cln start_suite
 } 
 
 
-start_suite : basic_stmt {$$ = $1;}
+begin_block : basic_stmt {$$ = $1;}
             | T_NL ID {
 				if(scopeChange) {
 					initNewTable(currentScope+1); currentScope++; 
 				}
 			} 
-			finalStatements suite {$$ = createOp("BeginBlock", 2, $4, $5);};
+			finalStatements block {$$ = createOp("BeginBlock", 2, $4, $5);};
 
-suite : T_NL ND finalStatements suite {$$ = createOp("Next", 2, $3, $4);}
-      | T_NL end_suite {$$ = $2;};
+block : T_NL ND finalStatements block {$$ = createOp("Next", 2, $3, $4);}
+      | T_NL end_block {$$ = $2;};
 
-end_suite : DD {if(scopeChange) { currentScope--; scopeChange-- ;}  } finalStatements {$$ = createOp("EndBlock", 1, $3);} 
+end_block : DD {if(scopeChange) { currentScope--; scopeChange-- ;}  } finalStatements {$$ = createOp("EndBlock", 1, $3);} 
           | DD { if(scopeChange) { currentScope--; scopeChange-- ;} } {$$ = createOp("EndBlock", 0);}
           | { if(scopeChange) {currentScope--; scopeChange-- ;} $$ = createOp("EndBlock", 0); resetDepth();};
 
@@ -1006,7 +1006,7 @@ call_args : T_ID {addToList($<text>1, 1);} call_list {$$ = createOp(argsList, 0)
 func_def : T_Def T_ID {
 	insertRecord("Func_Name", $<text>2, @2.first_line, currentScope);
 	scopeChange++ ; } 
-	T_OP args T_CP T_Cln start_suite {
+	T_OP args T_CP T_Cln begin_block {
 	$$ = createOp("Func_Name", 3, createID_Const("Func_Name", $<text>2, currentScope), $5, $8);};
 
 func_call : T_ID T_OP call_args T_CP {$$ = createOp("Func_Call", 2, createID_Const("Func_Name", $<text>1, currentScope), $3);};

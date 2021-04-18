@@ -72,9 +72,11 @@
 %}
 %option yylineno
 whitespace [ ]
-Multiline_comment \'\'\'.+\'\'\'
+Multiline_comment \'\'\'([\r\n]|([^''']|[\r\n]))*\'\'\' 
+comment [\t]*#.*
 %%
 
+{comment} {} 
 [\t]*		{
 			depth = indent_depth(yytext);
 //			printf("Depth : %d ",  depth);
@@ -144,6 +146,7 @@ Multiline_comment \'\'\'.+\'\'\'
 \'([^\'\n])*\' {yylval.text = strdup(yytext); debug(yylval.text); return T_String;}
 #.* {}
 {whitespace} {} 
+{Multiline_comment} {} 
 "\n" {yycolumn=1; debug("NL"); return T_NL;}
 <<EOF>> {debug("EOF"); return T_EndOfFile;}
 
