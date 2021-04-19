@@ -38,12 +38,9 @@ typedef struct Record
 
 typedef struct SymTable
 {
-	//int no;
 	int ele_count;
 	int symTableScope;
 	Record *Elements;
-	int parentScopeIndex;
-
 } SymTable;
 	
 typedef struct ASTNode
@@ -54,7 +51,7 @@ typedef struct ASTNode
 	int opCount;
    	struct ASTNode** NextLevel;
 	//if the Node is an identifier or a constant
-    	Record *id;
+   	Record *id;
 } Node;
   
 typedef struct Quad
@@ -80,7 +77,7 @@ Node * e1, * e2, * e3 = NULL;
 
 char g_dataType[100] = "";
 int currentScope = 0;
-int scopeChange = 0; //flag
+int scopeChange = 0; 
 int *arrayScope = NULL;
 int sIndex = -1, aIndex = -1, tabCount = 0, tIndex = 0 , label_index = 0, qIndex = 0, NodeCount = 0;
 char *argsList = NULL;
@@ -124,13 +121,11 @@ void dispSymtable()
 	int i = 0, j = 0;
 
 	fprintf(fsym,"\n---------------------------------------------------------------------------------------------Symbol Table----------------------------------------------------------------------------------------------\n");
-//	fprintf(fsym,"\n  Scope\t\t\tName\t\t\tData Type\t\t\tType\t\t\t\tDeclaration\t\t\tLast Used Line\n\n");
 	fprintf(fsym,"\n%-35s%-35s%-35s%-35s%-35s%-35s\n\n","Scope","Name","Data Type","Type","Declaration","Last Used Line");
 	for(i=0; i<=sIndex; i++)
 	{
 		for(j=0; j<st[i].ele_count; j++)
 		{
-//			fprintf(fsym,"  %d\t\t\t%s\t\t\t%s\t\t\t%s\t\t\t%d\t\t\t\t%d\n", st[i].symTableScope, st[i].Elements[j].name, st[i].Elements[j].datatype, st[i].Elements[j].type, st[i].Elements[j].decLine,  st[i].Elements[j].lastLine);
 			fprintf(fsym,"%-35d%-35s%-35s%-35s%-35d%-35d\n", st[i].symTableScope, st[i].Elements[j].name, st[i].Elements[j].datatype, st[i].Elements[j].type, st[i].Elements[j].decLine,  st[i].Elements[j].lastLine);
 		}
 	}
@@ -141,10 +136,8 @@ void dispSymtable()
 
 void printQuads(char *text)
 {
-	//printf("\n--------------------------------------------------------------------------------------------------------------------------------------------------\n");
 	fprintf(fquads,"-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n");
 	fprintf(fquads,"\n-------------------------------------------------------------------------Quadruples %s--------------------------------------------------------------------------------------\n",text);
-//	fprintf(fquads,"\n---------------------------------------------------------------Quadruples %s----------------------------------------------------------------\n",text);
 	fprintf(fquads,"\n%-35s%-35s%-35s%-35s%-35s\n\n","Lno.","Oper.","Arg1","Arg2","Res");
 
 	int i = 0;
@@ -153,8 +146,8 @@ void printQuads(char *text)
 		if(quad_array[i].I > -1)
 			fprintf(fquads,"%-35d%-35s%-35s%-35s%-35s\n", quad_array[i].I, quad_array[i].Op, quad_array[i].A1, quad_array[i].A2, quad_array[i].R);
 	}
-	//fprintf(fquads,"-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n");
 }
+
 
 
 /*
@@ -197,6 +190,7 @@ void printAST(Node *root)
 	}
 }
 */
+
 /* ------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
 
 
@@ -317,11 +311,9 @@ void init()
 	
 void checkList(const char *name, int lineNo, int codeScope)
 {
-		//int FScope = power(scope, arrayScope[scope]);
 		int FScope = hashScope(codeScope);
 		
 		int index = scopeBasedTableSearch(FScope);
-		//int index = scopeBasedTableSearch(scope);
 		
 		int i;
 		
@@ -369,26 +361,12 @@ void checkList(const char *name, int lineNo, int codeScope)
 
 }
 	
-/*	
-int IsValidNumber(char * string)
-{
-	for(int i = 0; i < strlen( string ); i ++)
-	{
-	      //ASCII value of 0 = 48, 9 = 57. So if value is outside of numeric range then fail
-	      //Checking for negative sign "-" could be added: ASCII value 45.
-	      if (string[i] < 48 || string[i] > 57)
-	      	return 0;
-	}
-	return 1;
-}
-*/
-
 /* ------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
 
 
 /* -------------------------------------------------- Intermediate Code Generation ICG -------------------------------------------------------------------------------*/
 
-void codeGenOp(Node *opNode)
+void genCode(Node *opNode)
 {
 	int i=0;
 	if(opNode == NULL)
@@ -434,7 +412,7 @@ void codeGenOp(Node *opNode)
 	
 	if(strcmp(opNode->NType, "=")==0)
 	{
-		codeGenOp(opNode->NextLevel[1]); 
+		genCode(opNode->NextLevel[1]); 
 	
 		fprintf(ftac,"%s = T%d\n", opNode->NextLevel[0]->id->name, opNode->NextLevel[1]->nodeNo);
 		makeQuad(opNode->NextLevel[0]->id->name, makeStr(opNode->NextLevel[1]->nodeNo, 1, "TempVarType"), "-", opNode->NType);
@@ -447,8 +425,8 @@ void codeGenOp(Node *opNode)
 	{
 		//node has two children
 		
-		codeGenOp(opNode->NextLevel[0]);
-		codeGenOp(opNode->NextLevel[1]);
+		genCode(opNode->NextLevel[0]);
+		genCode(opNode->NextLevel[1]);
 				
 		char *X1 = (char*)malloc(10);
 		char *X2 = (char*)malloc(10);
@@ -556,24 +534,24 @@ void codeGenOp(Node *opNode)
 		int temp = label_index;
 		
 		//next level of AST
-		codeGenOp(opNode->NextLevel[0]);
+		genCode(opNode->NextLevel[0]);
 		fprintf(ftac,"\nL%d: ", label_index);
 		makeQuad(makeStr(temp, 0, "LabelType"), "-", "-", "Label");		
-		codeGenOp(opNode->NextLevel[1]);
+		genCode(opNode->NextLevel[1]);
 		
 		//three address code
 		fprintf(ftac,"If False T%d goto L%d\n", opNode->NextLevel[1]->nodeNo, temp+1);
 		makeQuad(makeStr(temp+1, 0, "LabelType"), makeStr(opNode->NextLevel[1]->nodeNo, 1, "TempVarType"), "-", "If False");	
 
 		//next level of AST
-		codeGenOp(opNode->NextLevel[2]);
+		genCode(opNode->NextLevel[2]);
 
 		//three address code
 		fprintf(ftac,"If False T%d goto L%d\n", opNode->NextLevel[2]->nodeNo, temp+1);
 		makeQuad(makeStr(temp+1, 0, "LabelType"), makeStr(opNode->NextLevel[2]->nodeNo, 1, "TempVarType"), "-", "if false");	
 
 		//next level of AST
-		codeGenOp(opNode->NextLevel[3]);
+		genCode(opNode->NextLevel[3]);
 
 		//three address code
 		fprintf(ftac,"goto L%d\n", temp);
@@ -591,14 +569,14 @@ void codeGenOp(Node *opNode)
 		//next level of AST
 		fprintf(ftac,"\nL%d: ", label_index);
 		makeQuad(makeStr(temp, 0, "LabelType"), "-", "-", "Label");		
-		codeGenOp(opNode->NextLevel[0]);
+		genCode(opNode->NextLevel[0]);
 		
 		//three address code
 		fprintf(ftac,"If False T%d goto L%d\n", opNode->NextLevel[0]->nodeNo, label_index+1);
 		makeQuad(makeStr(temp+1, 0, "LabelType"), makeStr(opNode->NextLevel[0]->nodeNo, 1, "TempVarType"), "-", "If False");
 			
 		//next level of AST
-		codeGenOp(opNode->NextLevel[1]);
+		genCode(opNode->NextLevel[1]);
 		
 		//three address code
 		fprintf(ftac,"goto L%d\n", temp);
@@ -614,15 +592,15 @@ void codeGenOp(Node *opNode)
 
 	if(strcmp(opNode->NType, "Next")==0)
 	{
-		codeGenOp(opNode->NextLevel[0]);
-		codeGenOp(opNode->NextLevel[1]);
+		genCode(opNode->NextLevel[0]);
+		genCode(opNode->NextLevel[1]);
 		return;
 	}
 	
 	if(strcmp(opNode->NType, "BeginBlock")==0)
 	{
-		codeGenOp(opNode->NextLevel[0]);
-		codeGenOp(opNode->NextLevel[1]);		
+		genCode(opNode->NextLevel[0]);
+		genCode(opNode->NextLevel[1]);		
 		return;	
 	}
 		
@@ -636,7 +614,7 @@ void codeGenOp(Node *opNode)
 			}
 			case 1 : 
 			{
-				codeGenOp(opNode->NextLevel[0]);
+				genCode(opNode->NextLevel[0]);
 				break;
 			}
 		}
@@ -655,7 +633,7 @@ void codeGenOp(Node *opNode)
 	{
 		if(opNode->opCount == 1)
 		{
-			codeGenOp(opNode->NextLevel[0]);
+			genCode(opNode->NextLevel[0]);
 			char *X1 = (char*)malloc(10);
 			char *X2 = (char*)malloc(10);
 			strcpy(X1, makeStr(opNode->nodeNo, 1, "unknown"));
@@ -666,8 +644,8 @@ void codeGenOp(Node *opNode)
 		
 		else
 		{
-			codeGenOp(opNode->NextLevel[0]);
-			codeGenOp(opNode->NextLevel[1]);
+			genCode(opNode->NextLevel[0]);
+			genCode(opNode->NextLevel[1]);
 			char *X1 = (char*)malloc(10);
 			char *X2 = (char*)malloc(10);
 			char *X3 = (char*)malloc(10);
@@ -695,8 +673,8 @@ void codeGenOp(Node *opNode)
 	
 	if(strcmp(opNode->NType, "NewLine")==0)
 	{
-		codeGenOp(opNode->NextLevel[0]);
-		codeGenOp(opNode->NextLevel[1]);
+		genCode(opNode->NextLevel[0]);
+		genCode(opNode->NextLevel[1]);
 		return;
 	}
 	
@@ -705,7 +683,7 @@ void codeGenOp(Node *opNode)
 	{
 		fprintf(ftac,"Begin Function %s\n", opNode->NextLevel[0]->id->name);
 		makeQuad("-", opNode->NextLevel[0]->id->name, "-", "BeginF");
-		codeGenOp(opNode->NextLevel[2]);
+		genCode(opNode->NextLevel[2]);
 		fprintf(ftac,"End Function %s\n", opNode->NextLevel[0]->id->name);
 		makeQuad("-", opNode->NextLevel[0]->id->name, "-", "EndF");
 		return;
@@ -835,31 +813,20 @@ int hashScope(int codeScope)
 	return pow(codeScope, arrayScope[codeScope] + 1);
 }
 	
-/*void updateScope(int codeScope)
-{
- 	currentScope = codeScope;
-}*/
-	
 void resetDepth()
 {
 	while(top()) pop();
-//	depth = 10;
 }
 	
 void initNewTable(int codeScope)
 {
 	arrayScope[codeScope]++;
 	sIndex++;
-//	st[sIndex].scope = power(scope, arrayScope[scope]);
 	st[sIndex].symTableScope = hashScope(codeScope);
-
-//	st[sIndex].no = sIndex;
 
 	st[sIndex].ele_count = 0;		
 	st[sIndex].Elements = (Record*)calloc(MAXRECST, sizeof(Record));
 	
-	st[sIndex].parentScopeIndex = scopeBasedTableSearch(codeScope-1); 
-//	st[sIndex].parentScopeIndex = scopeBasedTableSearch(currentScope); 
 }
 
 int scopeBasedTableSearch(int symTableScope)
@@ -893,7 +860,6 @@ Record* modifyRecordID(const char *type, const char *name, int lineNo, int codeS
 {
 		int i =0;
 		
-		//int FScope = power(scope, arrayScope[scope]);
 		int FScope = hashScope(codeScope);
 		
 		int index = scopeBasedTableSearch(FScope);
@@ -927,7 +893,6 @@ Record* modifyRecordID(const char *type, const char *name, int lineNo, int codeS
 	
 void insertRecord(const char* type, const char *name, const char * datatype, int lineNo, int codeScope)
 { 
-		//int FScope = power(scope, arrayScope[scope]);
 		int FScope = hashScope(codeScope);
 		int index = scopeBasedTableSearch(FScope);
 
@@ -956,7 +921,6 @@ Record* findRecord(const char *name, const char *type, int codeScope)
 {
 		int i =0;
 		
-		//int FScope = power(scope, arrayScope[scope]);
 		int FScope = hashScope(codeScope);
 		
 		int index = scopeBasedTableSearch(FScope);
@@ -1008,7 +972,6 @@ void commonSubexprElim()
 						}
 						else
 						{
-							//quad_array[i].R='\0';
 							quad_array[j].I = -1;
 						}
 					}
@@ -1074,29 +1037,7 @@ void constantFolding()
 			char* r=(char*)malloc(100);
 			int a=0,b=0;
 			
-			/*for(int j=0;j<qIndex; j++)
-			{
-				if((a!=1) && (strcmp(quad_array[i].A1,quad_array[j].R)==0) && (strcmp(quad_array[j].A2,"-")==0))
-					{
-						strcpy(l,quad_array[j].A1);
-						printf("%d : %s\n",j,quad_array[j].A1);
-						a=1;
-					}
-				
-				
-				if((b!=1) && (strcmp(quad_array[i].A2,quad_array[j].R)==0) && (strcmp(quad_array[j].A2,"-")==0))
-					{
-						strcpy(r,quad_array[j].A1);
-						b=1;
-					}
-					
-				if(a==1 && b==1)
-					break;				
-			}*/
 			
-			
-		
-				
 			float res=0;
 			strcpy(l,quad_array[i].A1);
 			strcpy(r,quad_array[i].A2);
@@ -1199,12 +1140,6 @@ void strengthRedn()
 						sprintf(ns, "%d", n);
 						strcpy(quad_array[i].A2,ns);
 					}
-					/*else
-					{
-						float m = (1/(atof(quad_array[j].A1)));
-						quad_array[i].Op="*";
-						sprintf(ns, "%f", m);
-					}*/
 				}
 			}
 		}
@@ -1241,10 +1176,9 @@ void optimization()
 	constantFolding();
 	deadCodeElimination();
 
-	//printQuads("Post Optimization");
 	printQuads("Dead Code Elimination");
 	printf("\n");
-		fprintf(fquads,"-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n");
+	fprintf(fquads,"-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n");
 }
 
 /* ------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
@@ -1272,7 +1206,7 @@ void freeAll()
 %union { char *text; int depth; struct ASTNode* Node;};
 %locations
    	  
-%token T_EndOfFile T_Return T_Number T_True T_False T_ID T_Print T_Cln T_NL T_EQL T_NEQ T_EQ T_GT T_LT T_EGT T_ELT T_Or T_And T_Not T_In T_Range ID ND DD T_String T_If T_Elif T_For T_While T_Else T_Import T_Break T_Pass T_MN T_PL T_DV T_ML T_OP T_CP T_OB T_CB T_Def T_Comma T_List
+%token T_EndOfFile T_Return T_Number T_True T_False T_ID T_Print T_Cln T_NL T_EQL T_NEQ T_EQ T_GT T_LT T_EGT T_ELT T_Or T_And T_Not T_In T_Range T_Indent T_Nodent T_Dedent T_String T_If T_Elif T_For T_While T_Else T_Import T_Break T_Pass T_MN T_PL T_DV T_ML T_OP T_CP T_OB T_CB T_Def T_Comma T_List
 
 %right T_EQL                                          
 %left T_PL T_MN
@@ -1281,27 +1215,26 @@ void freeAll()
 %nonassoc T_Elif
 %nonassoc T_Else
 
-%type<Node> RunCompiler args begin_block block end_block func_call call_args BeginParse finalStatements arith_exp bool_exp term constant simple_stmt cmpd_stmt func_def list_index import_stmt pass_stmt break_stmt for_stmt while_stmt return_stmt assign_stmt bool_term bool_factor
+%type<Node> RunCompiler args begin_block block end_block func_call call_args BeginParse finalStatements arith_exp bool_exp term constant simple_stmt cmpd_stmt func_def list_index import_stmt break_stmt for_stmt while_stmt return_stmt assign_stmt bool_term bool_factor
 
 %%
 
-RunCompiler : {init();} BeginParse T_EndOfFile {ftac=fopen("TAC.txt","w"); fquads=fopen("Quads.txt","w"); fsym=fopen("SymTable.txt","w"); printf("\n-------------------------------------------------------------------------------------------------------------------------------------------------\nValid Python Syntax!\n-------------------------------------------------------------------------------------------------------------------------------------------------\n"); fprintf(ftac,"-------------------------------------------------------------Three Address Code--------------------------------------------------------------\n");  /*printAST($2);*/ codeGenOp($2); printQuads(""); dispSymtable(); optimization(); freeAll(); exit(0);} ;
+RunCompiler : {init();} BeginParse T_EndOfFile {ftac=fopen("TAC.txt","w"); fquads=fopen("Quads.txt","w"); fsym=fopen("SymTable.txt","w"); printf("\n-------------------------------------------------------------------------------------------------------------------------------------------------\nValid Python Syntax!\n-------------------------------------------------------------------------------------------------------------------------------------------------\n"); fprintf(ftac,"-------------------------------------------------------------Three Address Code--------------------------------------------------------------\n");  genCode($2); printQuads(""); dispSymtable(); optimization(); freeAll(); exit(0);} ;
 
 constant : T_Number {insertRecord("Constant", $<text>1, "int", @1.first_line, currentScope);strcpy(g_dataType, "int");  $$ = pushID_Const("Constant", $<text>1, currentScope);}
          | T_String {insertRecord("Constant", $<text>1, "str", @1.first_line, currentScope); strcpy(g_dataType, "str"); $$ = pushID_Const("Constant", $<text>1, currentScope);}
          | T_True {insertRecord("Constant", "True", "bool", @1.first_line, currentScope); strcpy(g_dataType, "bool"); $$ = pushID_Const("Constant", "True", currentScope);}
          | T_False {insertRecord("Constant", "False", "bool", @1.first_line, currentScope); strcpy(g_dataType, "bool"); $$ = pushID_Const("Constant", "False", currentScope);};
+
 term : T_ID {Record *element = modifyRecordID("Identifier", $<text>1, @1.first_line, currentScope); strcpy(g_dataType, element->datatype); $$ = pushID_Const("Identifier", $<text>1, currentScope);} 
      | constant {$$ = $1;} 
      | list_index {$$ = $1;};
-
 
 list_index : T_ID T_OB constant T_CB {checkList($<text>1, @1.first_line, currentScope); $$ = pushOp("ListIndex", 2, pushID_Const("ListTypeID", $<text>1, currentScope), $3);};
 
 BeginParse : T_NL BeginParse {$$=$2;}| finalStatements T_NL {resetDepth();} BeginParse {$$ = pushOp("NewLine", 2, $1, $4);}| finalStatements T_NL {$$=$1;};
 
-simple_stmt : pass_stmt {$$=$1;}
-           | break_stmt {$$=$1;}
+simple_stmt :break_stmt {$$=$1;}
            | import_stmt {$$=$1;}
            | assign_stmt {$$=$1;}
            | arith_exp {$$=$1;}
@@ -1335,7 +1268,6 @@ bool_factor : T_Not bool_factor {$$ = pushOp("!", 1, $2);}
             | T_OP bool_exp T_CP {$$ = $2;}; 
 
 import_stmt : T_Import T_ID {insertRecord("PackageName", $<text>2, "N/A", @2.first_line, currentScope); $$ = pushOp("import", 1, pushID_Const("PackageName", $<text>2, currentScope));};
-pass_stmt : T_Pass {$$ = pushOp("pass", 0);};
 break_stmt : T_Break {$$ = pushOp("break", 0);};
 return_stmt : T_Return {$$ = pushOp("return", 0);};;
 
@@ -1367,18 +1299,18 @@ for_stmt : T_For T_ID T_In T_Range T_OP term T_Comma term T_CP T_Cln begin_block
 
 
 begin_block : simple_stmt {$$ = $1;}
-            | T_NL ID {
+            | T_NL T_Indent {
 				if(scopeChange) {
 					initNewTable(currentScope+1); currentScope++; 
 				}
 			} 
 			finalStatements block {$$ = pushOp("BeginBlock", 2, $4, $5);};
 
-block : T_NL ND finalStatements block {$$ = pushOp("Next", 2, $3, $4);}
+block : T_NL T_Nodent finalStatements block {$$ = pushOp("Next", 2, $3, $4);}
       | T_NL end_block {$$ = $2;};
 
-end_block : DD {if(scopeChange) { currentScope--; scopeChange-- ;}  } finalStatements {$$ = pushOp("EndBlock", 1, $3);} 
-          | DD { if(scopeChange) { currentScope--; scopeChange-- ;} } {$$ = pushOp("EndBlock", 0);}
+end_block : T_Dedent {if(scopeChange) { currentScope--; scopeChange-- ;}  } finalStatements {$$ = pushOp("EndBlock", 1, $3);} 
+          | T_Dedent { if(scopeChange) { currentScope--; scopeChange-- ;} } {$$ = pushOp("EndBlock", 0);}
           | { if(scopeChange) {currentScope--; scopeChange-- ;} $$ = pushOp("EndBlock", 0); resetDepth();};
 
 args : T_ID {addToList($<text>1, 1);} args_list {$$ = pushOp(argsList, 0); clearArgsList();} 

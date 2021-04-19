@@ -2,7 +2,6 @@ import hWorld
 x=10
 y=10
 
-#Comment1
 x+y
 listX = []
 
@@ -35,5 +34,4 @@ def F2():
 
 
 #F2()
-#Comment2
 F1(10, 10, 10)

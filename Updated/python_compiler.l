@@ -88,22 +88,22 @@ comment [\t]*#.*
 			{
 				while (depth < top()) pop();
 				yylval.depth = depth;
-				debug("DD");
-				return DD;
+				debug("Dedent");
+				return T_Dedent;
 			}
 			
 			if(depth == top())
 			{
-				debug("ND");
+				debug("Nodent");
 				yylval.depth = depth;
-				return ND;				
+				return T_Nodent;				
 			}
 			if(depth > top())
 			{
 				push(depth);
-				debug("ID");
+				debug("Indent");
 				yylval.depth = depth;
-				return ID;
+				return T_Indent;
 			}
 			
 		}
