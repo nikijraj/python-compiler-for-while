@@ -7,7 +7,7 @@ for i in range(2,3):
 
 while True:
 	y=False
-	while(not (True)):
+	while not True:
 		t=12345
 
 

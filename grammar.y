@@ -258,7 +258,7 @@ char *makeStr(int no, int flag, char *datatype)
 	
 void makeQuad(char *R, char *A1, char *A2, char *Op)
 {
-	//add a quadrant record 
+	//add a quadruple record 
 	quad_array[qIndex].R = (char*)malloc(strlen(R)+1);
 	quad_array[qIndex].Op = (char*)malloc(strlen(Op)+1);
 	quad_array[qIndex].A1 = (char*)malloc(strlen(A1)+1);
@@ -667,22 +667,21 @@ Node *pushOp(char *oper, int opCount, ...)
 	//AST NType
 	va_list params;
 	Node *newNode;
-        int i;
+    int i;
    	newNode = (Node*)calloc(1, sizeof(Node));
-    
-        newNode->NextLevel = (Node**)calloc(opCount, sizeof(Node*));
+    newNode->NextLevel = (Node**)calloc(opCount, sizeof(Node*));
    
-        newNode->NType = (char*)malloc(strlen(oper)+1);
-        strcpy(newNode->NType, oper);
-        newNode->opCount = opCount;
+    newNode->NType = (char*)malloc(strlen(oper)+1);
+    strcpy(newNode->NType, oper);
+    newNode->opCount = opCount;
 	va_start(params, opCount);
     
-    	for (i = 0; i < opCount; i++)
-	    	newNode->NextLevel[i] = va_arg(params, Node*);
+    for (i = 0; i < opCount; i++)
+	   	newNode->NextLevel[i] = va_arg(params, Node*);
     
 	va_end(params);
-    	newNode->nodeNo = NodeCount++;
-    	return newNode;
+    newNode->nodeNo = NodeCount++;
+    return newNode;
 }
 
 void addToList(char *newVal, int flag)
@@ -741,15 +740,15 @@ int hashScope(int codeScope)
 	return pow(codeScope, arrayScope[codeScope] + 1);
 }
 	
-void updateScope(int codeScope)
+/*void updateScope(int codeScope)
 {
  	currentScope = codeScope;
-}
+}*/
 	
 void resetDepth()
 {
 	while(top()) pop();
-	depth = 10;
+//	depth = 10;
 }
 	
 void initNewTable(int codeScope)
@@ -771,7 +770,7 @@ void initNewTable(int codeScope)
 int scopeBasedTableSearch(int symTableScope)
 {
 	int i = sIndex;
-	for(i; i > -1; i--)
+	for(; i > -1; i--)
 	{
 		if(st[i].symTableScope == symTableScope)
 		{
@@ -892,8 +891,6 @@ Record* findRecord(const char *name, const char *type, int codeScope)
 	return findRecord(name, type, codeScope-1);
 }
 
-//paste rest of the symbol table code here
-
 /* ------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
 	  
 void init()
@@ -973,7 +970,7 @@ void checkList(const char *name, int lineNo, int codeScope)
 
 }
 	
-	
+/*	
 int IsValidNumber(char * string)
 {
 	for(int i = 0; i < strlen( string ); i ++)
@@ -985,7 +982,7 @@ int IsValidNumber(char * string)
 	}
 	return 1;
 }
-
+*/
 /* ----------------------------------------------------------------------------- Code Optimization ----------------------------------------------------------------------*/
 
 void commonSubexprElim()
@@ -1002,8 +999,7 @@ void commonSubexprElim()
 				}
 			}
 		}
-		printQuads("Common Sub Expression ELimination");
-
+		printQuads("Common Sub Expression Elimination");
 }
 
 int deadCodeElimination()
@@ -1262,11 +1258,11 @@ void freeAll()
 %nonassoc T_Elif
 %nonassoc T_Else
 
-%type<Node> RunCode args begin_block block end_block func_call call_args BeginParse finalStatements arith_exp bool_exp term constant basic_stmt cmpd_stmt func_def list_index import_stmt pass_stmt break_stmt for_stmt while_stmt return_stmt assign_stmt bool_term bool_factor
+%type<Node> RunCompiler args begin_block block end_block func_call call_args BeginParse finalStatements arith_exp bool_exp term constant simple_stmt cmpd_stmt func_def list_index import_stmt pass_stmt break_stmt for_stmt while_stmt return_stmt assign_stmt bool_term bool_factor
 
 %%
 
-RunCode : {init();} BeginParse T_EndOfFile {ftac=fopen("TAC.txt","w"); fquads=fopen("Quads.txt","w"); fsym=fopen("Symtable.txt","w"); printf("\n-------------------------------------------------------------------------------------------------------------------------------------------------\nValid Python Syntax!\n-------------------------------------------------------------------------------------------------------------------------------------------------\n"); fprintf(ftac,"-------------------------------------------------------------Three Address Code--------------------------------------------------------------\n");  /*printAST($2);*/ codeGenOp($2); printQuads(""); dispSymtable(); optimization(); freeAll(); exit(0);} ;
+RunCompiler : {init();} BeginParse T_EndOfFile {ftac=fopen("TAC.txt","w"); fquads=fopen("Quads.txt","w"); fsym=fopen("Symtable.txt","w"); printf("\n-------------------------------------------------------------------------------------------------------------------------------------------------\nValid Python Syntax!\n-------------------------------------------------------------------------------------------------------------------------------------------------\n"); fprintf(ftac,"-------------------------------------------------------------Three Address Code--------------------------------------------------------------\n");  /*printAST($2);*/ codeGenOp($2); printQuads(""); dispSymtable(); optimization(); freeAll(); exit(0);} ;
 
 constant : T_Number {insertRecord("Constant", $<text>1, "int", @1.first_line, currentScope);strcpy(g_dataType, "int");  $$ = pushID_Const("Constant", $<text>1, currentScope);}
          | T_String {insertRecord("Constant", $<text>1, "str", @1.first_line, currentScope); strcpy(g_dataType, "str"); $$ = pushID_Const("Constant", $<text>1, currentScope);}
@@ -1281,7 +1277,7 @@ list_index : T_ID T_OB constant T_CB {checkList($<text>1, @1.first_line, current
 
 BeginParse : T_NL BeginParse {$$=$2;}| finalStatements T_NL {resetDepth();} BeginParse {$$ = pushOp("NewLine", 2, $1, $4);}| finalStatements T_NL {$$=$1;};
 
-basic_stmt : pass_stmt {$$=$1;}
+simple_stmt : pass_stmt {$$=$1;}
            | break_stmt {$$=$1;}
            | import_stmt {$$=$1;}
            | assign_stmt {$$=$1;}
@@ -1325,7 +1321,7 @@ assign_stmt : T_ID T_EQL arith_exp { if(!strlen(g_dataType)) { strcpy(g_dataType
             | T_ID  T_EQL func_call {insertRecord("Identifier", $<text>1, "unknown return", @1.first_line, currentScope); $$ = pushOp("=", 2, pushID_Const("Identifier", $<text>1, currentScope), $3);} 
             | T_ID T_EQL T_OB T_CB {insertRecord("ListTypeID", $<text>1, "list", @1.first_line, currentScope); $$ = pushID_Const("ListTypeID", $<text>1, currentScope);} ;
 	      
-finalStatements : basic_stmt {$$ = $1;}
+finalStatements : simple_stmt {$$ = $1;}
                 | cmpd_stmt {$$ = $1;}
                 | func_def {$$ = $1;}
                 | func_call {$$ = $1;}
@@ -1347,7 +1343,7 @@ for_stmt : T_For T_ID T_In T_Range T_OP term T_Comma term T_CP T_Cln begin_block
 }; 
 
 
-begin_block : basic_stmt {$$ = $1;}
+begin_block : simple_stmt {$$ = $1;}
             | T_NL ID {
 				if(scopeChange) {
 					initNewTable(currentScope+1); currentScope++; 

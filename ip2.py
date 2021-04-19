@@ -1,6 +1,6 @@
 #Basic Code
 
-import scipy
+	import scipy
 
 '''
 x = 2
