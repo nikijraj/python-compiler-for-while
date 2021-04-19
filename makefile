@@ -8,4 +8,4 @@ lex.yy.c : grammar.l
 	lex grammar.l
 
 clean :
-	rm lex.yy.c y.tab.c y.tab.h Test.out
+	rm lex.yy.c y.tab.c y.tab.h Test.out y.output

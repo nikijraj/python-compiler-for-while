@@ -6,6 +6,8 @@
 	
 	int yycolumn = 1;
 	int startFlag = 1;
+
+	FILE* ftokens=NULL;
 	
 	#define YY_USER_ACTION yylloc.first_line = yylloc.last_line = yylineno; 		\
     yylloc.first_column = yycolumn; yylloc.last_column = yycolumn + yyleng - 1; 	\
@@ -16,19 +18,21 @@
  	static void debug(const char *X)
  	{
  		#ifdef DEBUG
+		if(!ftokens)
+			ftokens=fopen("tokens.txt","w");
  		if(startFlag)
  		{
- 			printf("\n---------------------------------------------------------------Token Sequence-----------------------------------------------------------------\n1 ");
+ 			fprintf(ftokens,"\n---------------------------------------------------------------Token Sequence-----------------------------------------------------------------\n1 ");
  			startFlag=0;
  		}
  		
  		if(strcmp(X, "NL")==0)
  		{
- 			printf("T_%s\n%d ", X, yylineno);
+ 			fprintf(ftokens,"T_%s\n%d ", X, yylineno);
  		}
 		else
 		{
-			printf("T_%s ", X);	
+			fprintf(ftokens,"T_%s ", X);	
 		}
  		#endif
  	}
@@ -61,7 +65,7 @@
 			}
 			else
 			{
-				printf("Nope");
+				fprintf(ftokens,"Nope");
 				break;
 			}	
 		}
@@ -79,7 +83,7 @@ comment [\t]*#.*
 {comment} {} 
 [\t]*		{
 			depth = indent_depth(yytext);
-//			printf("Depth : %d ",  depth);
+//			fprintf(ftokens,"Depth : %d ",  depth);
 			if(depth < top())
 			{
 				while (depth < top()) pop();
@@ -144,7 +148,6 @@ comment [\t]*#.*
 [_a-zA-Z][_a-zA-Z0-9]* {if(strlen(yytext)>79){yytext[78]='\0';} yylval.text = strdup(yytext); debug(yylval.text); return T_ID;}
 \"([^\"\n])*\" {yylval.text = strdup(yytext); debug(yylval.text); return T_String;}
 \'([^\'\n])*\' {yylval.text = strdup(yytext); debug(yylval.text); return T_String;}
-#.* {}
 {whitespace} {} 
 {Multiline_comment} {} 
 "\n" {yycolumn=1; debug("NL"); return T_NL;}

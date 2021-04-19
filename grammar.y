@@ -19,6 +19,10 @@ extern int depth;
 extern int top();
 extern int pop();
 
+FILE* ftac=NULL;
+FILE* fquads=NULL;
+FILE* fsym=NULL;
+
 int yylex();
 void yyerror(const char*);
 	
@@ -46,9 +50,9 @@ typedef struct ASTNode
 {
 	int nodeNo;
 	//if the Node is an operator
-    	char *NType;
+   	char *NType;
 	int opCount;
-    	struct ASTNode** NextLevel;
+   	struct ASTNode** NextLevel;
 	//if the Node is an identifier or a constant
     	Record *id;
 } Node;
@@ -59,6 +63,7 @@ typedef struct Quad
 	char *A1;
 	char *A2;
 	char *Op;
+	//for optimisation
 	int I;
 } Quad;
 
@@ -87,7 +92,7 @@ int *levelIndices = NULL;
 /* -------------------------------------------------------------- Function Prototypes --------------------------------------------------------------------------*/
 
 Record* findRecord(const char *name, const char *type, int codeScope);
-Node *createID_Const(char *value, char *type, int codeScope);
+Node *pushID_Const(char *value, char *type, int codeScope);
 int hashScope(int codeScope);
 void updateScope(int codeScope);
 void resetDepth();
@@ -116,36 +121,42 @@ void dispSymtable()
 {
 	int i = 0, j = 0;
 
-	printf("\n----------------------------------------------------------------Symbol Table----------------------------------------------------------------\n");
-	printf("\n  Scope\t\t\tName\t\t\tData Type\t\t\tType\t\t\t\tDeclaration\t\t\tLast Used Line\n\n");
+	fprintf(fsym,"\n---------------------------------------------------------------------------------------------Symbol Table----------------------------------------------------------------------------------------------\n");
+//	fprintf(fsym,"\n  Scope\t\t\tName\t\t\tData Type\t\t\tType\t\t\t\tDeclaration\t\t\tLast Used Line\n\n");
+	fprintf(fsym,"\n%-35s%-35s%-35s%-35s%-35s%-35s\n\n","Scope","Name","Data Type","Type","Declaration","Last Used Line");
 	for(i=0; i<=sIndex; i++)
 	{
 		for(j=0; j<st[i].ele_count; j++)
 		{
-			printf("  %d\t\t\t%s\t\t\t%s\t\t\t%s\t\t\t%d\t\t\t\t%d\n", st[i].symTableScope, st[i].Elements[j].name, st[i].Elements[j].datatype, st[i].Elements[j].type, st[i].Elements[j].decLine,  st[i].Elements[j].lastLine);
+//			fprintf(fsym,"  %d\t\t\t%s\t\t\t%s\t\t\t%s\t\t\t%d\t\t\t\t%d\n", st[i].symTableScope, st[i].Elements[j].name, st[i].Elements[j].datatype, st[i].Elements[j].type, st[i].Elements[j].decLine,  st[i].Elements[j].lastLine);
+			fprintf(fsym,"%-35d%-35s%-35s%-35s%-35d%-35d\n", st[i].symTableScope, st[i].Elements[j].name, st[i].Elements[j].datatype, st[i].Elements[j].type, st[i].Elements[j].decLine,  st[i].Elements[j].lastLine);
 		}
 	}
 
-	printf("-------------------------------------------------------------------------------------------------------------------------------------------------\n");
+	fprintf(fsym,"-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n");
 
 }
 
 
 void printQuads(char *text)
 {
-	printf("\n--------------------------------------------------------------------------------------------------------------------------------------------------\n");
-	printf("\n---------------------------------------------------------------Quadruples %s----------------------------------------------------------------\n",text);
-	printf("\nLno.			Oper.			Arg1			Arg2			Res\n\n");
+	//printf("\n--------------------------------------------------------------------------------------------------------------------------------------------------\n");
+	fprintf(fquads,"-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n");
+	fprintf(fquads,"\n-------------------------------------------------------------------------Quadruples %s--------------------------------------------------------------------------------------\n",text);
+//	fprintf(fquads,"\n---------------------------------------------------------------Quadruples %s----------------------------------------------------------------\n",text);
+	fprintf(fquads,"\nLno.			Oper.			Arg1			Arg2			Res\n\n");
 
 	int i = 0;
 	for(i=0; i<qIndex; i++)
 	{
 		if(quad_array[i].I > -1)
-			printf("%d\t\t\t%s\t\t\t%s\t\t\t%s\t\t\t%s\n", quad_array[i].I, quad_array[i].Op, quad_array[i].A1, quad_array[i].A2, quad_array[i].R);
+			fprintf(fquads,"%d\t\t\t%s\t\t\t%s\t\t\t%s\t\t\t%s\n", quad_array[i].I, quad_array[i].Op, quad_array[i].A1, quad_array[i].A2, quad_array[i].R);
 	}
-	printf("--------------------------------------------------------------------------------------------------------------------------------------------------\n");
+	fprintf(fquads,"-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n");
 }
 
+
+/*
 void printAST(Node *root)
 {
 	
@@ -184,7 +195,7 @@ void printAST(Node *root)
 		printf("\n");
 	}
 }
-
+*/
 /* ------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
 
 /* -------------------------------------------------------------- Shared Functions ----------------------------------------------------------------------*/
@@ -232,14 +243,14 @@ char *makeStr(int no, int flag, char *datatype)
 	{
 			strcpy(tString, "T");
 			strcat(tString, A);
-			insertRecord("ICGTempVar", tString, datatype, -1, 1);
+			insertRecord("TempVar", tString, datatype, -1, 1);
 			return tString;
 	}
 	else
 	{
 			strcpy(lString, "L");
 			strcat(lString, A);
-			insertRecord("ICGTempLabel", lString, "N/A", -1, 1);
+			insertRecord("TempLabel", lString, "N/A", -1, 1);
 			return lString;
 	}
 
@@ -288,7 +299,7 @@ void codeGenOp(Node *opNode)
 	int i=0;
 	if(opNode == NULL)
 	{
-		printf("opNode is null");
+		fprintf(ftac,"opNode is null");
 		return;
 	}
 		
@@ -311,7 +322,7 @@ void codeGenOp(Node *opNode)
 			
 			if(flag==1)
 			{
-				printf("%s = %s\n",quad_array[i].A1, opNode->id->name);
+				fprintf(ftac,"%s = %s\n",quad_array[i].A1, opNode->id->name);
 				
 				int n=tempNum(quad_array[i].A1);
 				makeQuad(makeStr(n,1, "unknown"), opNode->id->name, "-", "=");
@@ -320,7 +331,7 @@ void codeGenOp(Node *opNode)
 			
 			else
 			{	
-				printf("T%d = %s\n", opNode->nodeNo, opNode->id->name);
+				fprintf(ftac,"T%d = %s\n", opNode->nodeNo, opNode->id->name);
 				makeQuad(makeStr(opNode->nodeNo, 1, "TempVarType"), opNode->id->name, "-", "=");
 			}
 		}
@@ -331,7 +342,7 @@ void codeGenOp(Node *opNode)
 	{
 		codeGenOp(opNode->NextLevel[1]); 
 	
-		printf("%s = T%d\n", opNode->NextLevel[0]->id->name, opNode->NextLevel[1]->nodeNo);
+		fprintf(ftac,"%s = T%d\n", opNode->NextLevel[0]->id->name, opNode->NextLevel[1]->nodeNo);
 		makeQuad(opNode->NextLevel[0]->id->name, makeStr(opNode->NextLevel[1]->nodeNo, 1, "TempVarType"), "-", opNode->NType);
 		
 		return;
@@ -404,7 +415,7 @@ void codeGenOp(Node *opNode)
 
 		if(flag==1)
 		{
-			printf("T%d = %s %s %s\n", opNode->nodeNo, quad_array[j].A1, opNode->NType, quad_array[i].A1);
+			fprintf(ftac,"T%d = %s %s %s\n", opNode->nodeNo, quad_array[j].A1, opNode->NType, quad_array[i].A1);
 			
 			int m=tempNum(quad_array[i].A1);
 			int n=tempNum(quad_array[j].A1);
@@ -415,7 +426,7 @@ void codeGenOp(Node *opNode)
 		
 		else if(flag==2)
 		{
-			printf("T%d = %s %s T%d\n", opNode->nodeNo, quad_array[j].A1, opNode->NType, opNode->NextLevel[1]->nodeNo);
+			fprintf(ftac,"T%d = %s %s T%d\n", opNode->nodeNo, quad_array[j].A1, opNode->NType, opNode->NextLevel[1]->nodeNo);
 			
 			int n=tempNum(quad_array[j].A1);
 			strcpy(X2, makeStr(n, 1, t1));
@@ -424,7 +435,7 @@ void codeGenOp(Node *opNode)
 		
 		else if(flag==3)
 		{
-			printf("T%d = T%d %s %s\n", opNode->nodeNo, opNode->NextLevel[0]->nodeNo, opNode->NType, quad_array[i].A1);
+			fprintf(ftac,"T%d = T%d %s %s\n", opNode->nodeNo, opNode->NextLevel[0]->nodeNo, opNode->NType, quad_array[i].A1);
 			
 			int n=tempNum(quad_array[j].A1);
 			strcpy(X2, makeStr(opNode->NextLevel[0]->nodeNo, 1, t1));
@@ -435,7 +446,7 @@ void codeGenOp(Node *opNode)
 		{		
 			strcpy(X2, makeStr(opNode->NextLevel[0]->nodeNo, 1, t1));
 			strcpy(X3, makeStr(opNode->NextLevel[1]->nodeNo, 1, t2));
-			printf("T%d = T%d %s T%d\n", opNode->nodeNo, opNode->NextLevel[0]->nodeNo, opNode->NType, opNode->NextLevel[1]->nodeNo);
+			fprintf(ftac,"T%d = T%d %s T%d\n", opNode->nodeNo, opNode->NextLevel[0]->nodeNo, opNode->NType, opNode->NextLevel[1]->nodeNo);
 		}
 			
 		makeQuad(X1, X2, X3, opNode->NType);
@@ -452,28 +463,28 @@ void codeGenOp(Node *opNode)
 		
 		//next level of AST
 		codeGenOp(opNode->NextLevel[0]);
-		printf("\nL%d: ", label_index);
+		fprintf(ftac,"\nL%d: ", label_index);
 		makeQuad(makeStr(temp, 0, "LabelType"), "-", "-", "Label");		
 		codeGenOp(opNode->NextLevel[1]);
 		
 		//three address code
-		printf("If False T%d goto L%d\n", opNode->NextLevel[1]->nodeNo, temp+1);
+		fprintf(ftac,"If False T%d goto L%d\n", opNode->NextLevel[1]->nodeNo, temp+1);
 		makeQuad(makeStr(temp+1, 0, "LabelType"), makeStr(opNode->NextLevel[1]->nodeNo, 1, "TempVarType"), "-", "If False");	
 
 		//next level of AST
 		codeGenOp(opNode->NextLevel[2]);
 
 		//three address code
-		printf("If False T%d goto L%d\n", opNode->NextLevel[2]->nodeNo, temp+1);
+		fprintf(ftac,"If False T%d goto L%d\n", opNode->NextLevel[2]->nodeNo, temp+1);
 		makeQuad(makeStr(temp+1, 0, "LabelType"), makeStr(opNode->NextLevel[2]->nodeNo, 1, "TempVarType"), "-", "if false");	
 
 		//next level of AST
 		codeGenOp(opNode->NextLevel[3]);
 
 		//three address code
-		printf("goto L%d\n", temp);
+		fprintf(ftac,"goto L%d\n", temp);
 		makeQuad(makeStr(temp, 0, "LabelType"), "-", "-", "goto");
-		printf("L%d: ", temp+1);
+		fprintf(ftac,"L%d: ", temp+1);
 		makeQuad(makeStr(temp+1, 0, "LabelType"), "-", "-", "Label"); 
 		label_index = label_index+2;
 		return;
@@ -484,23 +495,23 @@ void codeGenOp(Node *opNode)
 		int temp = label_index;
 		
 		//next level of AST
-		printf("\nL%d: ", label_index);
+		fprintf(ftac,"\nL%d: ", label_index);
 		makeQuad(makeStr(temp, 0, "LabelType"), "-", "-", "Label");		
 		codeGenOp(opNode->NextLevel[0]);
 		
 		//three address code
-		printf("If False T%d goto L%d\n", opNode->NextLevel[0]->nodeNo, label_index+1);
+		fprintf(ftac,"If False T%d goto L%d\n", opNode->NextLevel[0]->nodeNo, label_index+1);
 		makeQuad(makeStr(temp+1, 0, "LabelType"), makeStr(opNode->NextLevel[0]->nodeNo, 1, "TempVarType"), "-", "If False");
 			
 		//next level of AST
 		codeGenOp(opNode->NextLevel[1]);
 		
 		//three address code
-		printf("goto L%d\n", temp);
+		fprintf(ftac,"goto L%d\n", temp);
 		makeQuad(makeStr(temp, 0, "LabelType"), "-", "-", "goto");
 		
 		//three address code
-		printf("L%d: ", temp+1);
+		fprintf(ftac,"L%d: ", temp+1);
 		fflush(stdout);
 		makeQuad(makeStr(temp+1, 0, "LabelType"), "-", "-", "Label"); 
 		label_index = label_index+2;
@@ -540,7 +551,7 @@ void codeGenOp(Node *opNode)
 	
 	if(strcmp(opNode->NType, "ListIndex")==0)
 	{
-		printf("T%d = %s[%s]\n", opNode->nodeNo, opNode->NextLevel[0]->id->name, opNode->NextLevel[1]->id->name);
+		fprintf(ftac,"T%d = %s[%s]\n", opNode->nodeNo, opNode->NextLevel[0]->id->name, opNode->NextLevel[1]->id->name);
 		makeQuad(makeStr(opNode->nodeNo, 1, "unknown"), opNode->NextLevel[0]->id->name, opNode->NextLevel[1]->id->name, "=[]");
 		return;
 	}
@@ -555,7 +566,7 @@ void codeGenOp(Node *opNode)
 			char *X2 = (char*)malloc(10);
 			strcpy(X1, makeStr(opNode->nodeNo, 1, "unknown"));
 			strcpy(X2, makeStr(opNode->NextLevel[0]->nodeNo, 1, "unknown"));
-			printf("T%d = %s T%d\n", opNode->nodeNo, opNode->NType, opNode->NextLevel[0]->nodeNo);
+			fprintf(ftac,"T%d = %s T%d\n", opNode->nodeNo, opNode->NType, opNode->NextLevel[0]->nodeNo);
 			makeQuad(X1, X2, "-", opNode->NType);	
 		}
 		
@@ -571,7 +582,7 @@ void codeGenOp(Node *opNode)
 			strcpy(X2, makeStr(opNode->NextLevel[0]->nodeNo, 1, "unknown"));
 			strcpy(X3, makeStr(opNode->NextLevel[1]->nodeNo, 1, "unknown"));
 
-			printf("T%d = T%d %s T%d\n", opNode->nodeNo, opNode->NextLevel[0]->nodeNo, opNode->NType, opNode->NextLevel[1]->nodeNo);
+			fprintf(ftac,"T%d = T%d %s T%d\n", opNode->nodeNo, opNode->NextLevel[0]->nodeNo, opNode->NType, opNode->NextLevel[1]->nodeNo);
 			makeQuad(X1, X2, X3, opNode->NType);
 			free(X1);
 			free(X2);
@@ -583,7 +594,7 @@ void codeGenOp(Node *opNode)
 		
 	if(strcmp(opNode->NType, "import")==0)
 	{
-		printf("import %s\n", opNode->NextLevel[0]->id->name);
+		fprintf(ftac,"import %s\n", opNode->NextLevel[0]->id->name);
 		makeQuad("-", opNode->NextLevel[0]->id->name, "-", "import");
 		return;
 	}
@@ -598,10 +609,10 @@ void codeGenOp(Node *opNode)
 		
 	if(strcmp(opNode->NType, "Func_Name")==0)
 	{
-		printf("Begin Function %s\n", opNode->NextLevel[0]->id->name);
+		fprintf(ftac,"Begin Function %s\n", opNode->NextLevel[0]->id->name);
 		makeQuad("-", opNode->NextLevel[0]->id->name, "-", "BeginF");
 		codeGenOp(opNode->NextLevel[2]);
-		printf("End Function %s\n", opNode->NextLevel[0]->id->name);
+		fprintf(ftac,"End Function %s\n", opNode->NextLevel[0]->id->name);
 		makeQuad("-", opNode->NextLevel[0]->id->name, "-", "EndF");
 		return;
 	}
@@ -610,7 +621,7 @@ void codeGenOp(Node *opNode)
 	{
 		if(strcmp(opNode->NextLevel[1]->NType, "Void")==0)
 		{
-			printf("(T%d)Call Function %s\n", opNode->nodeNo, opNode->NextLevel[0]->id->name);
+			fprintf(ftac,"(T%d)Call Function %s\n", opNode->nodeNo, opNode->NextLevel[0]->id->name);
 			makeQuad(makeStr(opNode->nodeNo, 1, "fun"), opNode->NextLevel[0]->id->name, "-", "Call");
 		}
 		else
@@ -621,15 +632,15 @@ void codeGenOp(Node *opNode)
 			while (token != NULL) 
 			{
       			    i++; 
-			    printf("Push Param %s\n", token);
+			    fprintf(ftac,"Push Param %s\n", token);
 			    makeQuad("-", token, "-", "Param"); 
 			    token = strtok(NULL, ","); 
 			}
 				
-			printf("(T%d)Call Function %s, %d\n", opNode->nodeNo, opNode->NextLevel[0]->id->name, i);
+			fprintf(ftac,"(T%d)Call Function %s, %d\n", opNode->nodeNo, opNode->NextLevel[0]->id->name, i);
 			sprintf(A, "%d", i);
 			makeQuad(makeStr(opNode->nodeNo, 1, "fun"), opNode->NextLevel[0]->id->name, A, "Call");
-			printf("Pop Params for Function %s, %d\n", opNode->NextLevel[0]->id->name, i);
+			fprintf(ftac,"Pop Params for Function %s, %d\n", opNode->NextLevel[0]->id->name, i);
 							
 			return;
 		}
@@ -639,7 +650,7 @@ void codeGenOp(Node *opNode)
 
 /* ------------------------------------------------------------- AST ------------------------------------------------------------------------------------------------*/
 
-Node *createID_Const(char *type, char *value, int codeScope)
+Node *pushID_Const(char *type, char *value, int codeScope)
 {
 	char *val = value;
 	Node *newNode;
@@ -651,7 +662,7 @@ Node *createID_Const(char *type, char *value, int codeScope)
 	return newNode;
 }
 
-Node *createOp(char *oper, int opCount, ...)
+Node *pushOp(char *oper, int opCount, ...)
 {
 	//AST NType
 	va_list params;
@@ -673,6 +684,25 @@ Node *createOp(char *oper, int opCount, ...)
     	newNode->nodeNo = NodeCount++;
     	return newNode;
 }
+
+void addToList(char *newVal, int flag)
+{
+	if(flag==0)
+  	{
+		strcat(argsList, ", ");
+		strcat(argsList, newVal);
+	}
+	else
+	{
+		strcat(argsList, newVal);
+	}
+}
+  
+void clearArgsList()
+{
+    strcpy(argsList, "");
+}
+ 
 
 void ASTToArray(Node *root, int level)
 {
@@ -722,43 +752,6 @@ void resetDepth()
 	depth = 10;
 }
 	
-int scopeBasedTableSearch(int symTableScope)
-{
-	int i = sIndex;
-	for(i; i > -1; i--)
-	{
-		if(st[i].symTableScope == symTableScope)
-		{
-			return i;
-		}
-	}
-	return -1;
-}
-
-//paste rest of the symbol table code here
-
-/* ------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
-	  
-void addToList(char *newVal, int flag)
-{
-	if(flag==0)
-  	{
-		strcat(argsList, ", ");
-		strcat(argsList, newVal);
-	}
-	else
-	{
-		strcat(argsList, newVal);
-	}
-}
-  
-void clearArgsList()
-{
-    strcpy(argsList, "");
-}
- 
-
-	
 void initNewTable(int codeScope)
 {
 	arrayScope[codeScope]++;
@@ -774,28 +767,20 @@ void initNewTable(int codeScope)
 	st[sIndex].parentScopeIndex = scopeBasedTableSearch(codeScope-1); 
 //	st[sIndex].parentScopeIndex = scopeBasedTableSearch(currentScope); 
 }
-	
-void init()
-{
-		int i = 0;
-		st = (SymTable*)calloc(MAXST, sizeof(SymTable));
-		
-		arrayScope = (int*)calloc(MAXARRAYSCOPE, sizeof(int));
 
-		initNewTable(++currentScope);
-		argsList = (char *)malloc(100);
-		strcpy(argsList, "");
-		tString = (char*)calloc(10, sizeof(char));
-		lString = (char*)calloc(10, sizeof(char));
-		quad_array = (Quad*)calloc(MAXQUADS, sizeof(Quad));
-		
-		levelIndices = (int*)calloc(MAXLEVELS, sizeof(int));
-		Tree = (Node***)calloc(MAXLEVELS, sizeof(Node**));
-		for(i = 0; i<MAXLEVELS; i++)
+int scopeBasedTableSearch(int symTableScope)
+{
+	int i = sIndex;
+	for(i; i > -1; i--)
+	{
+		if(st[i].symTableScope == symTableScope)
 		{
-			Tree[i] = (Node**)calloc(MAXCHILDREN, sizeof(Node*));
+			return i;
 		}
 	}
+	return -1;
+}
+
 
 int searchRecordInScope(const char* type, const char *name, int index)
 {
@@ -872,6 +857,67 @@ void insertRecord(const char* type, const char *name, const char * datatype, int
 			st[index].Elements[RecordIndex].lastLine = lineNo;
 		}
 }
+
+Record* findRecord(const char *name, const char *type, int codeScope)
+{
+		int i =0;
+		
+		//int FScope = power(scope, arrayScope[scope]);
+		int FScope = hashScope(codeScope);
+		
+		int index = scopeBasedTableSearch(FScope);
+
+		if(index==0)
+		{
+			for(i=0; i<st[index].ele_count; i++)
+			{
+				
+				if(strcmp(st[index].Elements[i].type, type)==0 && (strcmp(st[index].Elements[i].name, name)==0))
+				{
+					return &(st[index].Elements[i]);
+				}	
+			}
+			printf("\n%s '%s' at line %d Not Found in Symbol Table at scope %d \n", type, name, yylineno, codeScope);
+			exit(1);
+		}
+		
+		for(i=0; i<st[index].ele_count; i++)
+		{
+			if(strcmp(st[index].Elements[i].type, type)==0 && (strcmp(st[index].Elements[i].name, name)==0))
+			{
+				return &(st[index].Elements[i]);
+			}	
+		}
+
+	return findRecord(name, type, codeScope-1);
+}
+
+//paste rest of the symbol table code here
+
+/* ------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+	  
+void init()
+{
+		int i = 0;
+		st = (SymTable*)calloc(MAXST, sizeof(SymTable));
+		
+		arrayScope = (int*)calloc(MAXARRAYSCOPE, sizeof(int));
+
+		initNewTable(++currentScope);
+		argsList = (char *)malloc(100);
+		strcpy(argsList, "");
+		tString = (char*)calloc(10, sizeof(char));
+		lString = (char*)calloc(10, sizeof(char));
+		quad_array = (Quad*)calloc(MAXQUADS, sizeof(Quad));
+		
+		levelIndices = (int*)calloc(MAXLEVELS, sizeof(int));
+		Tree = (Node***)calloc(MAXLEVELS, sizeof(Node**));
+		for(i = 0; i<MAXLEVELS; i++)
+		{
+			Tree[i] = (Node**)calloc(MAXCHILDREN, sizeof(Node*));
+		}
+	}
+
 	
 void checkList(const char *name, int lineNo, int codeScope)
 {
@@ -927,40 +973,6 @@ void checkList(const char *name, int lineNo, int codeScope)
 
 }
 	
-Record* findRecord(const char *name, const char *type, int codeScope)
-{
-		int i =0;
-		
-		//int FScope = power(scope, arrayScope[scope]);
-		int FScope = hashScope(codeScope);
-		
-		int index = scopeBasedTableSearch(FScope);
-
-		if(index==0)
-		{
-			for(i=0; i<st[index].ele_count; i++)
-			{
-				
-				if(strcmp(st[index].Elements[i].type, type)==0 && (strcmp(st[index].Elements[i].name, name)==0))
-				{
-					return &(st[index].Elements[i]);
-				}	
-			}
-			printf("\n%s '%s' at line %d Not Found in Symbol Table at scope %d \n", type, name, yylineno, codeScope);
-			exit(1);
-		}
-		
-		for(i=0; i<st[index].ele_count; i++)
-		{
-			if(strcmp(st[index].Elements[i].type, type)==0 && (strcmp(st[index].Elements[i].name, name)==0))
-			{
-				return &(st[index].Elements[i]);
-			}	
-		}
-
-	return findRecord(name, type, codeScope-1);
-}
-
 	
 int IsValidNumber(char * string)
 {
@@ -1137,16 +1149,16 @@ void constantFolding()
 void strengthRedn()
 {
 	for(int i=0; i<qIndex; i++)
-	{				
+	{
 		if(strcmp(quad_array[i].A2,"-")!=0)
 		{
 			for(int j=0; j<qIndex; j++)
-			{	
+			{
 				if((strcmp(quad_array[i].Op,"*")==0) && (strcmp(quad_array[i].A2,quad_array[j].R)==0) && (strcmp(quad_array[j].A2,"-")==0))
-				{	
+				{
 					char* ns=(char*)malloc(20);
 					int n = pow2(atoi(quad_array[j].A1));
-					
+
 					if(n>0)
 					{
 						quad_array[i].Op="<<";
@@ -1155,28 +1167,50 @@ void strengthRedn()
 					}
 				}
 				else if((strcmp(quad_array[i].Op,"/")==0) && (strcmp(quad_array[i].A2,quad_array[j].R)==0) && (strcmp(quad_array[j].A2,"-")==0))
-				{						
+				{
 					char* ns=(char*)malloc(20);
-					
+
 					int n = pow2(atoi(quad_array[j].A1));
-					
+
 					if(n>0)
-					{						
+					{
 						quad_array[i].Op=">>";
 						sprintf(ns, "%d", n);
+						strcpy(quad_array[i].A2,ns);
 					}
-					else
-					{			
-						int m = (1/(atoi(quad_array[j].A1)));
+					/*else
+					{
+						float m = (1/(atof(quad_array[j].A1)));
 						quad_array[i].Op="*";
-						sprintf(ns, "%d", m);
-					}
-					strcpy(quad_array[i].A2,ns);
+						sprintf(ns, "%f", m);
+					}*/
 				}
 			}
 		}
 	}
 	printQuads("Strength Reduction");
+}
+
+void constantProp()
+{
+	for(int i=0; i<qIndex; i++)
+	{				
+		if(strcmp(quad_array[i].A2,"-")==0 && (atoi(quad_array[i].A1)!=0))
+		{
+			for(int j=i+1; j<qIndex; j++)
+			{
+				if((strcmp(quad_array[i].R, quad_array[j].A1)==0) && (atoi(quad_array[j].A1)!=0) )
+				{
+					strcpy(quad_array[j].A1,quad_array[i].A1);
+				}
+				if((strcmp(quad_array[i].R, quad_array[j].A2)==0) && (atoi(quad_array[j].A2)!=0) )
+				{
+					strcpy(quad_array[j].A2,quad_array[i].A1);
+				}
+			}
+		}
+	}
+	printQuads("Constant Propagation");
 }
 
 void optimization()
@@ -1185,8 +1219,8 @@ void optimization()
 	
 	strengthRedn();
 	commonSubexprElim();
+	constantProp();
 	constantFolding();
-	//copyProp();
 	deadCodeElimination();
 
 	//printQuads("Post Optimization");
@@ -1228,24 +1262,24 @@ void freeAll()
 %nonassoc T_Elif
 %nonassoc T_Else
 
-%type<Node> StartDebugger args begin_block block end_block func_call call_args StartParse finalStatements arith_exp bool_exp term constant basic_stmt cmpd_stmt func_def list_index import_stmt pass_stmt break_stmt for_stmt while_stmt return_stmt assign_stmt bool_term bool_factor
+%type<Node> RunCode args begin_block block end_block func_call call_args BeginParse finalStatements arith_exp bool_exp term constant basic_stmt cmpd_stmt func_def list_index import_stmt pass_stmt break_stmt for_stmt while_stmt return_stmt assign_stmt bool_term bool_factor
 
 %%
 
-StartDebugger : {init();} StartParse T_EndOfFile {printf("\n-------------------------------------------------------------------------------------------------------------------------------------------------\nValid Python Syntax\n\n-------------------------------------------------------------Three Address Code--------------------------------------------------------------\n");  /*printAST($2);*/ codeGenOp($2); printQuads(""); dispSymtable(); optimization(); freeAll(); exit(0);} ;
+RunCode : {init();} BeginParse T_EndOfFile {ftac=fopen("TAC.txt","w"); fquads=fopen("Quads.txt","w"); fsym=fopen("Symtable.txt","w"); printf("\n-------------------------------------------------------------------------------------------------------------------------------------------------\nValid Python Syntax!\n-------------------------------------------------------------------------------------------------------------------------------------------------\n"); fprintf(ftac,"-------------------------------------------------------------Three Address Code--------------------------------------------------------------\n");  /*printAST($2);*/ codeGenOp($2); printQuads(""); dispSymtable(); optimization(); freeAll(); exit(0);} ;
 
-constant : T_Number {insertRecord("Constant", $<text>1, "int", @1.first_line, currentScope);strcpy(g_dataType, "int");  $$ = createID_Const("Constant", $<text>1, currentScope);}
-         | T_String {insertRecord("Constant", $<text>1, "str", @1.first_line, currentScope); strcpy(g_dataType, "str"); $$ = createID_Const("Constant", $<text>1, currentScope);};
-         | T_True {insertRecord("Constant", "True", "bool", @1.first_line, currentScope); strcpy(g_dataType, "bool"); $$ = createID_Const("Constant", "True", currentScope);}
-         | T_False {insertRecord("Constant", "False", "bool", @1.first_line, currentScope); strcpy(g_dataType, "bool"); $$ = createID_Const("Constant", "False", currentScope);};
-term : T_ID {Record *element = modifyRecordID("Identifier", $<text>1, @1.first_line, currentScope); strcpy(g_dataType, element->datatype); $$ = createID_Const("Identifier", $<text>1, currentScope);} 
+constant : T_Number {insertRecord("Constant", $<text>1, "int", @1.first_line, currentScope);strcpy(g_dataType, "int");  $$ = pushID_Const("Constant", $<text>1, currentScope);}
+         | T_String {insertRecord("Constant", $<text>1, "str", @1.first_line, currentScope); strcpy(g_dataType, "str"); $$ = pushID_Const("Constant", $<text>1, currentScope);}
+         | T_True {insertRecord("Constant", "True", "bool", @1.first_line, currentScope); strcpy(g_dataType, "bool"); $$ = pushID_Const("Constant", "True", currentScope);}
+         | T_False {insertRecord("Constant", "False", "bool", @1.first_line, currentScope); strcpy(g_dataType, "bool"); $$ = pushID_Const("Constant", "False", currentScope);};
+term : T_ID {Record *element = modifyRecordID("Identifier", $<text>1, @1.first_line, currentScope); strcpy(g_dataType, element->datatype); $$ = pushID_Const("Identifier", $<text>1, currentScope);} 
      | constant {$$ = $1;} 
      | list_index {$$ = $1;};
 
 
-list_index : T_ID T_OB constant T_CB {checkList($<text>1, @1.first_line, currentScope); $$ = createOp("ListIndex", 2, createID_Const("ListTypeID", $<text>1, currentScope), $3);};
+list_index : T_ID T_OB constant T_CB {checkList($<text>1, @1.first_line, currentScope); $$ = pushOp("ListIndex", 2, pushID_Const("ListTypeID", $<text>1, currentScope), $3);};
 
-StartParse : T_NL StartParse {$$=$2;}| finalStatements T_NL {resetDepth();} StartParse {$$ = createOp("NewLine", 2, $1, $4);}| finalStatements T_NL {$$=$1;};
+BeginParse : T_NL BeginParse {$$=$2;}| finalStatements T_NL {resetDepth();} BeginParse {$$ = pushOp("NewLine", 2, $1, $4);}| finalStatements T_NL {$$=$1;};
 
 basic_stmt : pass_stmt {$$=$1;}
            | break_stmt {$$=$1;}
@@ -1256,60 +1290,60 @@ basic_stmt : pass_stmt {$$=$1;}
            | return_stmt {$$=$1;};
 
 arith_exp : term {$$=$1;}
-          | arith_exp  T_PL  arith_exp {$$ = createOp("+", 2, $1, $3);}
-          | arith_exp  T_MN  arith_exp {$$ = createOp("-", 2, $1, $3);}
-          | arith_exp  T_ML  arith_exp {$$ = createOp("*", 2, $1, $3);}
-          | arith_exp  T_DV  arith_exp {$$ = createOp("/", 2, $1, $3);}
-          | T_MN arith_exp {$$ = createOp("-", 1, $2);}
+          | arith_exp  T_PL  arith_exp {$$ = pushOp("+", 2, $1, $3);}
+          | arith_exp  T_MN  arith_exp {$$ = pushOp("-", 2, $1, $3);}
+          | arith_exp  T_ML  arith_exp {$$ = pushOp("*", 2, $1, $3);}
+          | arith_exp  T_DV  arith_exp {$$ = pushOp("/", 2, $1, $3);}
+          | T_MN arith_exp {$$ = pushOp("-", 1, $2);}
           | T_OP arith_exp T_CP {$$ = $2;} ;
 		    
 
-bool_exp : bool_term T_Or bool_term {$$ = createOp("or", 2, $1, $3);}
-         | arith_exp T_LT arith_exp {$$ = createOp("<", 2, $1, $3);}
-         | bool_term T_And bool_term {$$ = createOp("and", 2, $1, $3);}
-         | arith_exp T_GT arith_exp {$$ = createOp(">", 2, $1, $3);}
-         | arith_exp T_ELT arith_exp {$$ = createOp("<=", 2, $1, $3);}
-         | arith_exp T_EGT arith_exp {$$ = createOp(">=", 2, $1, $3);}
-         | arith_exp T_In T_ID {checkList($<text>3, @3.first_line, currentScope); $$ = createOp("in", 2, $1, createID_Const("Constant", $<text>3, currentScope));}
+bool_exp : bool_term T_Or bool_term {$$ = pushOp("or", 2, $1, $3);}
+         | arith_exp T_LT arith_exp {$$ = pushOp("<", 2, $1, $3);}
+         | bool_term T_And bool_term {$$ = pushOp("and", 2, $1, $3);}
+         | arith_exp T_GT arith_exp {$$ = pushOp(">", 2, $1, $3);}
+         | arith_exp T_ELT arith_exp {$$ = pushOp("<=", 2, $1, $3);}
+         | arith_exp T_EGT arith_exp {$$ = pushOp(">=", 2, $1, $3);}
+         | arith_exp T_In T_ID {checkList($<text>3, @3.first_line, currentScope); $$ = pushOp("in", 2, $1, pushID_Const("Constant", $<text>3, currentScope));}
          | bool_term {$$=$1;}; 
 
 bool_term : bool_factor {$$ = $1;}
-          | arith_exp T_EQ arith_exp {$$ = createOp("==", 2, $1, $3);}
-          | T_True {insertRecord("Constant", "True", "bool", @1.first_line, currentScope); $$ = createID_Const("Constant", "True", currentScope);}
-          | T_False {insertRecord("Constant", "False", "bool", @1.first_line, currentScope); $$ = createID_Const("Constant", "False", currentScope);}; 
+          | arith_exp T_EQ arith_exp {$$ = pushOp("==", 2, $1, $3);}
+          | T_True {insertRecord("Constant", "True", "bool", @1.first_line, currentScope); $$ = pushID_Const("Constant", "True", currentScope);}
+          | T_False {insertRecord("Constant", "False", "bool", @1.first_line, currentScope); $$ = pushID_Const("Constant", "False", currentScope);}; 
           
-bool_factor : T_Not bool_factor {$$ = createOp("!", 1, $2);}
+bool_factor : T_Not bool_factor {$$ = pushOp("!", 1, $2);}
             | T_OP bool_exp T_CP {$$ = $2;}; 
 
-import_stmt : T_Import T_ID {insertRecord("PackageName", $<text>2, "N/A", @2.first_line, currentScope); $$ = createOp("import", 1, createID_Const("PackageName", $<text>2, currentScope));};
-pass_stmt : T_Pass {$$ = createOp("pass", 0);};
-break_stmt : T_Break {$$ = createOp("break", 0);};
-return_stmt : T_Return {$$ = createOp("return", 0);};;
+import_stmt : T_Import T_ID {insertRecord("PackageName", $<text>2, "N/A", @2.first_line, currentScope); $$ = pushOp("import", 1, pushID_Const("PackageName", $<text>2, currentScope));};
+pass_stmt : T_Pass {$$ = pushOp("pass", 0);};
+break_stmt : T_Break {$$ = pushOp("break", 0);};
+return_stmt : T_Return {$$ = pushOp("return", 0);};;
 
-assign_stmt : T_ID T_EQL arith_exp { if(!strlen(g_dataType)) { strcpy(g_dataType, "float"); } insertRecord("Identifier", $<text>1, g_dataType, @1.first_line, currentScope); strcpy(g_dataType,""); $$ = createOp("=", 2, createID_Const("Identifier", $<text>1, currentScope), $3);}  
-            | T_ID T_EQL bool_exp {insertRecord("Identifier", $<text>1, "bool", @1.first_line, currentScope);$$ = createOp("=", 2, createID_Const("Identifier", $<text>1, currentScope), $3);}   
-            | T_ID  T_EQL func_call {insertRecord("Identifier", $<text>1, "unknown return", @1.first_line, currentScope); $$ = createOp("=", 2, createID_Const("Identifier", $<text>1, currentScope), $3);} 
-            | T_ID T_EQL T_OB T_CB {insertRecord("ListTypeID", $<text>1, "list", @1.first_line, currentScope); $$ = createID_Const("ListTypeID", $<text>1, currentScope);} ;
+assign_stmt : T_ID T_EQL arith_exp { if(!strlen(g_dataType)) { strcpy(g_dataType, "float"); } insertRecord("Identifier", $<text>1, g_dataType, @1.first_line, currentScope); strcpy(g_dataType,""); $$ = pushOp("=", 2, pushID_Const("Identifier", $<text>1, currentScope), $3);}  
+            | T_ID T_EQL bool_exp {insertRecord("Identifier", $<text>1, "bool", @1.first_line, currentScope);$$ = pushOp("=", 2, pushID_Const("Identifier", $<text>1, currentScope), $3);}   
+            | T_ID  T_EQL func_call {insertRecord("Identifier", $<text>1, "unknown return", @1.first_line, currentScope); $$ = pushOp("=", 2, pushID_Const("Identifier", $<text>1, currentScope), $3);} 
+            | T_ID T_EQL T_OB T_CB {insertRecord("ListTypeID", $<text>1, "list", @1.first_line, currentScope); $$ = pushID_Const("ListTypeID", $<text>1, currentScope);} ;
 	      
 finalStatements : basic_stmt {$$ = $1;}
                 | cmpd_stmt {$$ = $1;}
                 | func_def {$$ = $1;}
                 | func_call {$$ = $1;}
-                | error T_NL {yyerrok; yyclearin; $$=createOp("SyntaxError", 0);};
+                | error T_NL {yyerrok; yyclearin; $$=pushOp("SyntaxError", 0);};
 
 cmpd_stmt : while_stmt {$$ = $1;}
 		  | for_stmt {$$ = $1;};
 
 
-while_stmt : T_While bool_exp T_Cln begin_block {$$ = createOp("While", 2, $2, $4);}; 
+while_stmt : T_While bool_exp T_Cln begin_block {$$ = pushOp("While", 2, $2, $4);}; 
 
 for_stmt : T_For T_ID T_In T_Range T_OP term T_Comma term T_CP T_Cln begin_block { 
 	insertRecord("Identifier", $<text>2, "int", @1.first_line, currentScope); 
-	Node* idNode = createID_Const("Identifier", $<text>2, currentScope); 
-	e1 = createOp("=", 2, idNode, $<text>6); 
-	e2 = createOp(">=", 2, idNode, $<text>6); 
-	e3 = createOp("<", 2, idNode, $<text>8); 
-	$$ = createOp("For", 4, e1, e2, e3, $11);
+	Node* idNode = pushID_Const("Identifier", $<text>2, currentScope); 
+	e1 = pushOp("=", 2, idNode, $<text>6); 
+	e2 = pushOp(">=", 2, idNode, $<text>6); 
+	e3 = pushOp("<", 2, idNode, $<text>8); 
+	$$ = pushOp("For", 4, e1, e2, e3, $11);
 }; 
 
 
@@ -1319,35 +1353,35 @@ begin_block : basic_stmt {$$ = $1;}
 					initNewTable(currentScope+1); currentScope++; 
 				}
 			} 
-			finalStatements block {$$ = createOp("BeginBlock", 2, $4, $5);};
+			finalStatements block {$$ = pushOp("BeginBlock", 2, $4, $5);};
 
-block : T_NL ND finalStatements block {$$ = createOp("Next", 2, $3, $4);}
+block : T_NL ND finalStatements block {$$ = pushOp("Next", 2, $3, $4);}
       | T_NL end_block {$$ = $2;};
 
-end_block : DD {if(scopeChange) { currentScope--; scopeChange-- ;}  } finalStatements {$$ = createOp("EndBlock", 1, $3);} 
-          | DD { if(scopeChange) { currentScope--; scopeChange-- ;} } {$$ = createOp("EndBlock", 0);}
-          | { if(scopeChange) {currentScope--; scopeChange-- ;} $$ = createOp("EndBlock", 0); resetDepth();};
+end_block : DD {if(scopeChange) { currentScope--; scopeChange-- ;}  } finalStatements {$$ = pushOp("EndBlock", 1, $3);} 
+          | DD { if(scopeChange) { currentScope--; scopeChange-- ;} } {$$ = pushOp("EndBlock", 0);}
+          | { if(scopeChange) {currentScope--; scopeChange-- ;} $$ = pushOp("EndBlock", 0); resetDepth();};
 
-args : T_ID {addToList($<text>1, 1);} args_list {$$ = createOp(argsList, 0); clearArgsList();} 
-     | {$$ = createOp("Void", 0);};
+args : T_ID {addToList($<text>1, 1);} args_list {$$ = pushOp(argsList, 0); clearArgsList();} 
+     | {$$ = pushOp("Void", 0);};
 
 args_list : T_Comma T_ID {addToList($<text>2, 0);} args_list | ;
 
 
 call_list : T_Comma term {addToList($<text>1, 0);} call_list | ;
 
-call_args : T_ID {addToList($<text>1, 1);} call_list {$$ = createOp(argsList, 0); clearArgsList();}
-					| T_Number {addToList($<text>1, 1);} call_list {$$ = createOp(argsList, 0); clearArgsList();}
-					| T_String {addToList($<text>1, 1);} call_list {$$ = createOp(argsList, 0); clearArgsList();}	
-					| {$$ = createOp("Void", 0);};
+call_args : T_ID {addToList($<text>1, 1);} call_list {$$ = pushOp(argsList, 0); clearArgsList();}
+					| T_Number {addToList($<text>1, 1);} call_list {$$ = pushOp(argsList, 0); clearArgsList();}
+					| T_String {addToList($<text>1, 1);} call_list {$$ = pushOp(argsList, 0); clearArgsList();}	
+					| {$$ = pushOp("Void", 0);};
 
 func_def : T_Def T_ID {
 	insertRecord("Func_Name", $<text>2, "fun", @2.first_line, currentScope);
 	scopeChange++ ; } 
 	T_OP args T_CP T_Cln begin_block {
-	$$ = createOp("Func_Name", 3, createID_Const("Func_Name", $<text>2, currentScope), $5, $8);};
+	$$ = pushOp("Func_Name", 3, pushID_Const("Func_Name", $<text>2, currentScope), $5, $8);};
 
-func_call : T_ID T_OP call_args T_CP {$$ = createOp("Func_Call", 2, createID_Const("Func_Name", $<text>1, currentScope), $3);};
+func_call : T_ID T_OP call_args T_CP {$$ = pushOp("Func_Call", 2, pushID_Const("Func_Name", $<text>1, currentScope), $3);};
 
  
 %%

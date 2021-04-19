@@ -7,7 +7,7 @@ x+y
 listX = []
 
 def F1(A, B, C):
-	while(listX[2]==y):
+	while(listX[1]==y):
 		c=0
 		z=10
 		b=z
