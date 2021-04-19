@@ -14,7 +14,9 @@ def F1(A, B, C):
 		z=10
 		b=z
 		w=21
-						#sdbfkdsjbgdjhbgdkf	
+	return
+
+					#sdbfkdsjbgdjhbgdkf	
 
 def F2():
 	def F3():
@@ -25,6 +27,6 @@ def F2():
 
 
 
-n=F2()
+F2()
 #Comment2
-m = F1(10, 10, 10)
+F1(10, 10, 10)
