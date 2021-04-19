@@ -1,9 +1,10 @@
 %{
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdarg.h>
-#include <math.h>
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<stdarg.h>
+#include<math.h>
+#include<ctype.h>
 
 #define YYERROR_VERBOSE 1
 #define MAXARRAYSCOPE 256
@@ -17,20 +18,11 @@ extern int yylineno;
 extern int depth;
 extern int top();
 extern int pop();
-	
-	
-
-char g_dataType[100] = "";
-int currentScope = 0;
-// Bob int currentScope = -1;
-int scopeChange = 0; //flag
-	
-//Bob
-int *arrayScope = NULL;
 
 int yylex();
 void yyerror(const char*);
 	
+/* --------------------------------------------------------- Structures --------------------------------------------------------------------------------------*/
 typedef struct Record
 {
 	char *type;
@@ -69,19 +61,31 @@ typedef struct Quad
 	char *Op;
 	int I;
 } Quad;
+
+/* ------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
 	
+
+/* -------------------------------------------------------- Global Declarations & Definitions -----------------------------------------------------------------------*/
+
 SymTable *st = NULL;
-// Bob int sIndex = 0, aIndex = -1, tabCount = 0, tIndex = 0 , label_index = 0, qIndex = 0, NodeCount = 0;
-int sIndex = -1, aIndex = -1, tabCount = 0, tIndex = 0 , label_index = 0, qIndex = 0, NodeCount = 0;
 Node *rootNode;
-char *argsList = NULL;
-char *tString = NULL, *lString = NULL;
 Quad *quad_array = NULL;
 Node ***Tree = NULL;
-int *levelIndices = NULL;
 Node * e1, * e2, * e3 = NULL;
 
-//function prototypes 	
+char g_dataType[100] = "";
+int currentScope = 0;
+int scopeChange = 0; //flag
+int *arrayScope = NULL;
+int sIndex = -1, aIndex = -1, tabCount = 0, tIndex = 0 , label_index = 0, qIndex = 0, NodeCount = 0;
+char *argsList = NULL;
+char *tString = NULL, *lString = NULL;
+int *levelIndices = NULL;
+
+/* ------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+
+/* -------------------------------------------------------------- Function Prototypes --------------------------------------------------------------------------*/
+
 Record* findRecord(const char *name, const char *type, int codeScope);
 Node *createID_Const(char *value, char *type, int codeScope);
 int hashScope(int codeScope);
@@ -99,18 +103,101 @@ void addToList(char *newVal, int flag);
 void clearArgsList();
 int isBinOp(char *Op);
 int tempNum(char* arr);
-int digi(char* arr);
 void optimization();
+void printQuads(char *text);
+void printAST(Node *root);
+void ASTToArray(Node *root, int level);
 
-int digi(char* arr)
+/* ------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+
+/* ----------------------------------------------------------------- Print functions ---------------------------------------------------------------------------*/
+
+void dispSymtable()
 {
-	int i =0, l=sizeof(arr);
-	char ret[l];
-	for(i=0;i<l;i++)
+	int i = 0, j = 0;
+
+	printf("\n----------------------------------------------------------------Symbol Table----------------------------------------------------------------\n");
+	printf("\n  Scope\t\t\tName\t\t\tData Type\t\t\tType\t\t\t\tDeclaration\t\t\tLast Used Line\n\n");
+	for(i=0; i<=sIndex; i++)
 	{
-		ret[i]=arr[i];
+		for(j=0; j<st[i].ele_count; j++)
+		{
+			printf("  %d\t\t\t%s\t\t\t%s\t\t\t%s\t\t\t%d\t\t\t\t%d\n", st[i].symTableScope, st[i].Elements[j].name, st[i].Elements[j].datatype, st[i].Elements[j].type, st[i].Elements[j].decLine,  st[i].Elements[j].lastLine);
+		}
 	}
-	return atoi(ret);
+
+	printf("-------------------------------------------------------------------------------------------------------------------------------------------------\n");
+
+}
+
+
+void printQuads(char *text)
+{
+	printf("\n--------------------------------------------------------------------------------------------------------------------------------------------------\n");
+	printf("\n---------------------------------------------------------------Quadruples %s----------------------------------------------------------------\n",text);
+	printf("\nLno.			Oper.			Arg1			Arg2			Res\n\n");
+
+	int i = 0;
+	for(i=0; i<qIndex; i++)
+	{
+		if(quad_array[i].I > -1)
+			printf("%d\t\t\t%s\t\t\t%s\t\t\t%s\t\t\t%s\n", quad_array[i].I, quad_array[i].Op, quad_array[i].A1, quad_array[i].A2, quad_array[i].R);
+	}
+	printf("--------------------------------------------------------------------------------------------------------------------------------------------------\n");
+}
+
+void printAST(Node *root)
+{
+	
+	printf("\n-------------------------------------------------------------Abstract Syntax Tree------------------------------------------------\n");
+	
+	ASTToArray(root, 0);
+	int j = 0, p, q, maxLevel = 0, lCount = 0;
+	
+	while(levelIndices[maxLevel] > 0) maxLevel++;
+	
+	while(levelIndices[j] > 0)
+	{
+		for(q=0; q<lCount; q++)
+		{
+			printf(" ");
+		
+		}
+		for(p=0; p<levelIndices[j] ; p++)
+		{
+			if(Tree[j][p]->opCount == -1)
+			{
+				printf("%s  ", Tree[j][p]->id->name);
+				lCount+=strlen(Tree[j][p]->id->name);
+			}
+			else if(Tree[j][p]->opCount == 0)
+			{
+				printf("%s  ", Tree[j][p]->NType);
+				lCount+=strlen(Tree[j][p]->NType);
+			}
+			else
+			{
+				printf("%s(%d) ", Tree[j][p]->NType, Tree[j][p]->opCount);
+			}
+		}
+		j++;
+		printf("\n");
+	}
+}
+
+/* ------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+
+/* -------------------------------------------------------------- Shared Functions ----------------------------------------------------------------------*/
+
+int pow2(int num)
+{
+	float x=log2(num);
+	int xi= (int)x;
+
+	if(x-xi==0.0)
+		return xi;
+	else
+		return 0;
 }
 
 int tempNum(char* arr)
@@ -134,10 +221,10 @@ void Xitoa(int num, char *str)
 	}
 	sprintf(str, "%d", num);
 }
-
-//for intermediate code in sym table	
+	
 char *makeStr(int no, int flag, char *datatype)
 {
+	//for intermediate code in sym table
 	char A[10];
 	Xitoa(no, A);
 	
@@ -146,7 +233,6 @@ char *makeStr(int no, int flag, char *datatype)
 			strcpy(tString, "T");
 			strcat(tString, A);
 			insertRecord("ICGTempVar", tString, datatype, -1, 1);
-//Bob			insertRecord("TempVar", tString, -1, 0);
 			return tString;
 	}
 	else
@@ -154,15 +240,14 @@ char *makeStr(int no, int flag, char *datatype)
 			strcpy(lString, "L");
 			strcat(lString, A);
 			insertRecord("ICGTempLabel", lString, "N/A", -1, 1);
-//Bob			insertRecord("TempLabel", lString, -1, 0);
 			return lString;
 	}
 
 }
 	
-//add a quadrant record 
 void makeQuad(char *R, char *A1, char *A2, char *Op)
 {
+	//add a quadrant record 
 	quad_array[qIndex].R = (char*)malloc(strlen(R)+1);
 	quad_array[qIndex].Op = (char*)malloc(strlen(Op)+1);
 	quad_array[qIndex].A1 = (char*)malloc(strlen(A1)+1);
@@ -193,6 +278,10 @@ int isBinOp(char *Op)
 			return 0;
 	}
 }
+
+/* ------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+
+/* -------------------------------------------------- Intermediate Code Generation -------------------------------------------------------------------------------*/
 
 void codeGenOp(Node *opNode)
 {
@@ -360,21 +449,27 @@ void codeGenOp(Node *opNode)
 	if(strcmp(opNode->NType, "For")==0)
 	{
 		int temp = label_index;
+		
 		//next level of AST
 		codeGenOp(opNode->NextLevel[0]);
 		printf("\nL%d: ", label_index);
 		makeQuad(makeStr(temp, 0, "LabelType"), "-", "-", "Label");		
 		codeGenOp(opNode->NextLevel[1]);
+		
 		//three address code
 		printf("If False T%d goto L%d\n", opNode->NextLevel[1]->nodeNo, temp+1);
 		makeQuad(makeStr(temp+1, 0, "LabelType"), makeStr(opNode->NextLevel[1]->nodeNo, 1, "TempVarType"), "-", "If False");	
+
 		//next level of AST
 		codeGenOp(opNode->NextLevel[2]);
+
 		//three address code
 		printf("If False T%d goto L%d\n", opNode->NextLevel[2]->nodeNo, temp+1);
 		makeQuad(makeStr(temp+1, 0, "LabelType"), makeStr(opNode->NextLevel[2]->nodeNo, 1, "TempVarType"), "-", "if false");	
+
 		//next level of AST
 		codeGenOp(opNode->NextLevel[3]);
+
 		//three address code
 		printf("goto L%d\n", temp);
 		makeQuad(makeStr(temp, 0, "LabelType"), "-", "-", "goto");
@@ -387,18 +482,23 @@ void codeGenOp(Node *opNode)
 	if(strcmp(opNode->NType, "While")==0)
 	{
 		int temp = label_index;
+		
 		//next level of AST
 		printf("\nL%d: ", label_index);
 		makeQuad(makeStr(temp, 0, "LabelType"), "-", "-", "Label");		
 		codeGenOp(opNode->NextLevel[0]);
+		
 		//three address code
 		printf("If False T%d goto L%d\n", opNode->NextLevel[0]->nodeNo, label_index+1);
-		makeQuad(makeStr(temp+1, 0, "LabelType"), makeStr(opNode->NextLevel[0]->nodeNo, 1, "TempVarType"), "-", "If False");	
+		makeQuad(makeStr(temp+1, 0, "LabelType"), makeStr(opNode->NextLevel[0]->nodeNo, 1, "TempVarType"), "-", "If False");
+			
 		//next level of AST
 		codeGenOp(opNode->NextLevel[1]);
+		
 		//three address code
 		printf("goto L%d\n", temp);
 		makeQuad(makeStr(temp, 0, "LabelType"), "-", "-", "goto");
+		
 		//three address code
 		printf("L%d: ", temp+1);
 		fflush(stdout);
@@ -537,7 +637,8 @@ void codeGenOp(Node *opNode)
 	
 }
 
-	
+/* ------------------------------------------------------------- AST ------------------------------------------------------------------------------------------------*/
+
 Node *createID_Const(char *type, char *value, int codeScope)
 {
 	char *val = value;
@@ -550,9 +651,9 @@ Node *createID_Const(char *type, char *value, int codeScope)
 	return newNode;
 }
 
-//AST NType
 Node *createOp(char *oper, int opCount, ...)
 {
+	//AST NType
 	va_list params;
 	Node *newNode;
         int i;
@@ -572,7 +673,72 @@ Node *createOp(char *oper, int opCount, ...)
     	newNode->nodeNo = NodeCount++;
     	return newNode;
 }
-  
+
+void ASTToArray(Node *root, int level)
+{
+	  if(root == NULL )
+	  {
+	    return;
+	  }
+	  
+	  if(root->opCount <= 0)
+	  {
+	  	Tree[level][levelIndices[level]] = root;
+	  	levelIndices[level]++;
+	  }
+		  
+	  if(root->opCount > 0)
+	  {
+	  	int j;
+	 	Tree[level][levelIndices[level]] = root;
+		levelIndices[level]++; 
+	    	for(j=0; j<root->opCount; j++)
+		{
+		    	ASTToArray(root->NextLevel[j], level+1);
+		}
+	  }
+}
+//paste rest of the AST code here
+
+/* ------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+
+/* ------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+
+/* ----------------------------------------------------------- Symbol Table -------------------------------------------------------------------------------------------*/
+
+int hashScope(int codeScope)
+{
+	return pow(codeScope, arrayScope[codeScope] + 1);
+}
+	
+void updateScope(int codeScope)
+{
+ 	currentScope = codeScope;
+}
+	
+void resetDepth()
+{
+	while(top()) pop();
+	depth = 10;
+}
+	
+int scopeBasedTableSearch(int symTableScope)
+{
+	int i = sIndex;
+	for(i; i > -1; i--)
+	{
+		if(st[i].symTableScope == symTableScope)
+		{
+			return i;
+		}
+	}
+	return -1;
+}
+
+//paste rest of the symbol table code here
+
+/* ------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+	  
 void addToList(char *newVal, int flag)
 {
 	if(flag==0)
@@ -591,63 +757,19 @@ void clearArgsList()
     strcpy(argsList, "");
 }
  
-int hashScope(int codeScope)
-{
-	return pow(codeScope, arrayScope[codeScope] + 1);
-	/* Bob
-	int i =0, res = 1;
-	for(i; i<exp; i++)
-	{
-		res *= base;
-	}
-	return res;
-	*/
-}
-	
-void updateScope(int codeScope)
-{
- //Bob	currentScope = scope;
- 	currentScope = codeScope;
-}
-	
-void resetDepth()
-{
-	while(top()) pop();
-	depth = 10;
-}
-	
-int scopeBasedTableSearch(int symTableScope)
-{
-//Bob	return scope; //scope and index are same
-	int i = sIndex;
-	for(i; i > -1; i--)
-	{
-		if(st[i].symTableScope == symTableScope)
-		{
-			return i;
-		}
-	}
-	return -1;
-}
+
 	
 void initNewTable(int codeScope)
 {
-	/* Bob */
 	arrayScope[codeScope]++;
 	sIndex++;
 //	st[sIndex].scope = power(scope, arrayScope[scope]);
 	st[sIndex].symTableScope = hashScope(codeScope);
-/* Bob */
+
 //	st[sIndex].no = sIndex;
-//Bob	sIndex++;
-//Bob	sIndex=scope;
-//Bob
-// Bob	if(st[sIndex].ele_count ==0) // create new only if this is empty
-//Bob	{
-//Bob		st[sIndex].scope = scope;
-		st[sIndex].ele_count = 0;		
-		st[sIndex].Elements = (Record*)calloc(MAXRECST, sizeof(Record));
-//Bob	}
+
+	st[sIndex].ele_count = 0;		
+	st[sIndex].Elements = (Record*)calloc(MAXRECST, sizeof(Record));
 	
 	st[sIndex].parentScopeIndex = scopeBasedTableSearch(codeScope-1); 
 //	st[sIndex].parentScopeIndex = scopeBasedTableSearch(currentScope); 
@@ -657,9 +779,9 @@ void init()
 {
 		int i = 0;
 		st = (SymTable*)calloc(MAXST, sizeof(SymTable));
-		//Bob
+		
 		arrayScope = (int*)calloc(MAXARRAYSCOPE, sizeof(int));
-//Bob		initNewTable(1);
+
 		initNewTable(++currentScope);
 		argsList = (char *)malloc(100);
 		strcpy(argsList, "");
@@ -691,10 +813,12 @@ int searchRecordInScope(const char* type, const char *name, int index)
 Record* modifyRecordID(const char *type, const char *name, int lineNo, int codeScope)
 {
 		int i =0;
-//		int FScope = power(scope, arrayScope[scope]);
+		
+		//int FScope = power(scope, arrayScope[scope]);
 		int FScope = hashScope(codeScope);
+		
 		int index = scopeBasedTableSearch(FScope);
-//Bob		int index = scopeBasedTableSearch(scope);
+
 		if(index==0)
 		{
 			for(i=0; i<st[index].ele_count; i++)
@@ -718,16 +842,16 @@ Record* modifyRecordID(const char *type, const char *name, int lineNo, int codeS
 				return &(st[index].Elements[i]);
 			}	
 		}
-//Bob		return modifyRecordID(type, name, lineNo, st[st[index].parentScopeIndex].scope);
+
 		return modifyRecordID(type, name, lineNo, codeScope-1);
 }
 	
 void insertRecord(const char* type, const char *name, const char * datatype, int lineNo, int codeScope)
 { 
-//		int FScope = power(scope, arrayScope[scope]);
+		//int FScope = power(scope, arrayScope[scope]);
 		int FScope = hashScope(codeScope);
 		int index = scopeBasedTableSearch(FScope);
-	//Bob	int index = scopeBasedTableSearch(scope);
+
 		int RecordIndex = searchRecordInScope(type, name, index);
 		if(RecordIndex==-1)
 		{
@@ -751,11 +875,14 @@ void insertRecord(const char* type, const char *name, const char * datatype, int
 	
 void checkList(const char *name, int lineNo, int codeScope)
 {
-//		int FScope = power(scope, arrayScope[scope]);
+		//int FScope = power(scope, arrayScope[scope]);
 		int FScope = hashScope(codeScope);
+		
 		int index = scopeBasedTableSearch(FScope);
-//		int index = scopeBasedTableSearch(scope);
+		//int index = scopeBasedTableSearch(scope);
+		
 		int i;
+		
 		if(index==0)
 		{
 			
@@ -796,7 +923,6 @@ void checkList(const char *name, int lineNo, int codeScope)
 			}
 		}
 		
-//Bob		return checkList(name, lineNo, st[st[index].parentScopeIndex].scope);
 		return checkList(name, lineNo, codeScope-1);
 
 }
@@ -804,10 +930,12 @@ void checkList(const char *name, int lineNo, int codeScope)
 Record* findRecord(const char *name, const char *type, int codeScope)
 {
 		int i =0;
-//		int FScope = power(scope, arrayScope[scope]);
+		
+		//int FScope = power(scope, arrayScope[scope]);
 		int FScope = hashScope(codeScope);
+		
 		int index = scopeBasedTableSearch(FScope);
-//Bob		int index = scopeBasedTableSearch(scope);
+
 		if(index==0)
 		{
 			for(i=0; i<st[index].ele_count; i++)
@@ -829,93 +957,10 @@ Record* findRecord(const char *name, const char *type, int codeScope)
 				return &(st[index].Elements[i]);
 			}	
 		}
-//Bob	return findRecord(name, type, st[st[index].parentScopeIndex].scope);
+
 	return findRecord(name, type, codeScope-1);
 }
 
-void dispSymtable()
-{
-	int i = 0, j = 0;
-
-	printf("\n----------------------------------------------------------------Symbol Table----------------------------------------------------------------\n");
-	printf("\n  Scope\t\t\tName\t\t\tData Type\t\t\tType\t\t\t\tDeclaration\t\t\tLast Used Line\n\n");
-	for(i=0; i<=sIndex; i++)
-	{
-		for(j=0; j<st[i].ele_count; j++)
-		{
-//Bob			printf("(%d, %d)\t\t\t%s\t\t\t%s\t\t\t%d\t\t\t\t%d\n", st[i].parentScopeIndex, st[i].symTableScope, st[i].Elements[j].name, st[i].Elements[j].type, st[i].Elements[j].decLine,  st[i].Elements[j].lastLine);
-			printf("  %d\t\t\t%s\t\t\t%s\t\t\t%s\t\t\t%d\t\t\t\t%d\n", st[i].symTableScope, st[i].Elements[j].name, st[i].Elements[j].datatype, st[i].Elements[j].type, st[i].Elements[j].decLine,  st[i].Elements[j].lastLine);
-		}
-	}
-
-	printf("-------------------------------------------------------------------------------------------------------------------------------------------------\n");
-
-}
-
-
-void ASTToArray(Node *root, int level)
-{
-	  if(root == NULL )
-	  {
-	    return;
-	  }
-	  
-	  if(root->opCount <= 0)
-	  {
-	  	Tree[level][levelIndices[level]] = root;
-	  	levelIndices[level]++;
-	  }
-		  
-	  if(root->opCount > 0)
-	  {
-	  	int j;
-	 	Tree[level][levelIndices[level]] = root;
-		levelIndices[level]++; 
-	    	for(j=0; j<root->opCount; j++)
-		{
-		    	ASTToArray(root->NextLevel[j], level+1);
-		}
-	  }
-}
-	
-void printAST(Node *root)
-{
-	
-	printf("\n-------------------------------------------------------------Abstract Syntax Tree------------------------------------------------\n");
-	
-	ASTToArray(root, 0);
-	int j = 0, p, q, maxLevel = 0, lCount = 0;
-	
-	while(levelIndices[maxLevel] > 0) maxLevel++;
-	
-	while(levelIndices[j] > 0)
-	{
-		for(q=0; q<lCount; q++)
-		{
-			printf(" ");
-		
-		}
-		for(p=0; p<levelIndices[j] ; p++)
-		{
-			if(Tree[j][p]->opCount == -1)
-			{
-				printf("%s  ", Tree[j][p]->id->name);
-				lCount+=strlen(Tree[j][p]->id->name);
-			}
-			else if(Tree[j][p]->opCount == 0)
-			{
-				printf("%s  ", Tree[j][p]->NType);
-				lCount+=strlen(Tree[j][p]->NType);
-			}
-			else
-			{
-				printf("%s(%d) ", Tree[j][p]->NType, Tree[j][p]->opCount);
-			}
-		}
-		j++;
-		printf("\n");
-	}
-}
 	
 int IsValidNumber(char * string)
 {
@@ -929,7 +974,7 @@ int IsValidNumber(char * string)
 	return 1;
 }
 
-// Code Optimization
+/* ----------------------------------------------------------------------------- Code Optimization ----------------------------------------------------------------------*/
 
 void commonSubexprElim()
 {
@@ -945,6 +990,7 @@ void commonSubexprElim()
 				}
 			}
 		}
+		printQuads("Common Sub Expression ELimination");
 
 }
 
@@ -983,57 +1029,174 @@ void copyProp()
 {
 	for(int i=0; i<qIndex; i++)
 	{
-		if((strcmp(quad_array[i].Op,"=")==0) && (strcmp(quad_array[i].A1,"-")==1) && (strcmp(quad_array[i].A2,"-")==0))
+		if((strcmp(quad_array[i].Op,"=")==0) && (strcmp(quad_array[i].A1,"-")!=0) && (strcmp(quad_array[i].A2,"-")==0) && ((quad_array[i].A1[0])!='T') && ((quad_array[i].R[0])!='T'))
 		{
-			quad_array[i].R=quad_array[i].A1;
+			strcpy(quad_array[i].R,quad_array[i].A1);
 			quad_array[i].A1="-";
 		}
         }
 }
 
-void strenRed()
+
+void constantFolding()
 {
 	for(int i=0; i<qIndex; i++)
-	{
-		if((strcmp(quad_array[i].Op,"*")==0) && (atoi(quad_array[i].A2)==2) )
+	{				
+		if(strcmp(quad_array[i].A2,"-")!=0)
 		{
-			strcpy(quad_array[i].Op,"<<");
-			strcpy(quad_array[i].A2,"1");
+			
+			char* l=(char*)malloc(100);
+			char* r=(char*)malloc(100);
+			int a=0,b=0;
+			
+			for(int j=0;j<qIndex; j++)
+			{
+				if((a!=1) && (strcmp(quad_array[i].A1,quad_array[j].R)==0) && (strcmp(quad_array[j].A2,"-")==0))
+					{
+						strcpy(l,quad_array[j].A1);
+						a=1;
+					}
+				
+				
+				if((b!=1) && (strcmp(quad_array[i].A2,quad_array[j].R)==0) && (strcmp(quad_array[j].A2,"-")==0))
+					{
+						strcpy(r,quad_array[j].A1);
+						b=1;
+					}
+					
+				if(a==1 && b==1)
+					break;				
+			}
+		
+				
+			float res=0;
+			
+			if(strcmp(quad_array[i].Op,"*")==0)
+			{	
+				res= atof(l) * atof(r); 
+				char* res_str=(char*)malloc(100);;
+				sprintf(res_str, "%f", res);
+				
+				quad_array[i].A1=res_str;
+				quad_array[i].A2="-";
+				quad_array[i].Op="=";
+			}
+			
+			else if(strcmp(quad_array[i].Op,"+")==0)
+			{	
+				res= atof(l) + atof(r); 
+				char* res_str=(char*)malloc(100);;
+				sprintf(res_str, "%f", res);
+				
+				quad_array[i].A1=res_str;
+				quad_array[i].A2="-";
+				quad_array[i].Op="=";
+			}
+			
+			else if(strcmp(quad_array[i].Op,"/")==0)
+			{	res= atof(l) / atof(r); 
+				char* res_str=(char*)malloc(100);;
+				sprintf(res_str, "%f", res);
+				
+				quad_array[i].A1=res_str;
+				quad_array[i].A2="-";
+				quad_array[i].Op="=";
+				
+			}
+			
+			else if(strcmp(quad_array[i].Op,"<<")==0)
+			{	int res1= (atoi(l)<<atoi(quad_array[i].A2)); 
+				char* res_str=(char*)malloc(100);;
+				sprintf(res_str, "%d", res1);
+				
+				quad_array[i].A1=res_str;
+				quad_array[i].A2="-";
+				quad_array[i].Op="=";
+				
+			}
+			
+			else if(strcmp(quad_array[i].Op,">>")==0)
+			{	int res1= (atoi(l)>>atoi(quad_array[i].A2)); 
+				char* res_str=(char*)malloc(100);;
+				sprintf(res_str, "%d", res1);
+				
+				quad_array[i].A1=res_str;
+				quad_array[i].A2="-";
+				quad_array[i].Op="=";
+				
+			}			
 		}
-		if((strcmp(quad_array[i].Op,"/")==0) && (digi(quad_array[i].A2)==2))
-		{
-			strcpy(quad_array[i].Op,"<<");
-			strcpy(quad_array[i].A2,"1");
-			//makeQuad(quad_array[i].R,quad_array[i].A1,"1","<<");
-		}
-        }
+		
+		else
+			continue;
+	
+	}
+	printQuads("Constant Folding");
 }
 
-void printQuads()
+void strengthRedn()
 {
-	printf("\n--------------------------------------------------------------------------------------------------------------------------------------------------\n");
-	printf("\n--------------------------------------------------------------------Quadruples---------------------------------------------------------------------\n");
-	printf("\nLno.			Oper.			Arg1			Arg2			Res\n\n");
-
-	int i = 0;
-	for(i=0; i<qIndex; i++)
-	{
-		if(quad_array[i].I > -1)
-			printf("%d\t\t\t%s\t\t\t%s\t\t\t%s\t\t\t%s\n", quad_array[i].I, quad_array[i].Op, quad_array[i].A1, quad_array[i].A2, quad_array[i].R);
+	for(int i=0; i<qIndex; i++)
+	{				
+		if(strcmp(quad_array[i].A2,"-")!=0)
+		{
+			for(int j=0; j<qIndex; j++)
+			{	
+				if((strcmp(quad_array[i].Op,"*")==0) && (strcmp(quad_array[i].A2,quad_array[j].R)==0) && (strcmp(quad_array[j].A2,"-")==0))
+				{	
+					char* ns=(char*)malloc(20);
+					int n = pow2(atoi(quad_array[j].A1));
+					
+					if(n>0)
+					{
+						quad_array[i].Op="<<";
+						sprintf(ns, "%d", n);
+						strcpy(quad_array[i].A2,ns);
+					}
+				}
+				else if((strcmp(quad_array[i].Op,"/")==0) && (strcmp(quad_array[i].A2,quad_array[j].R)==0) && (strcmp(quad_array[j].A2,"-")==0))
+				{						
+					char* ns=(char*)malloc(20);
+					
+					int n = pow2(atoi(quad_array[j].A1));
+					
+					if(n>0)
+					{						
+						quad_array[i].Op=">>";
+						sprintf(ns, "%d", n);
+					}
+					else
+					{			
+						int m = (1/(atoi(quad_array[j].A1)));
+						quad_array[i].Op="*";
+						sprintf(ns, "%d", m);
+					}
+					strcpy(quad_array[i].A2,ns);
+				}
+			}
+		}
 	}
-	printf("--------------------------------------------------------------------------------------------------------------------------------------------------\n");
+	printQuads("Strength Reduction");
 }
 
 void optimization()
 {
+	//Calling optimization functions
+	
+	strengthRedn();
+	commonSubexprElim();
+	constantFolding();
 	//copyProp();
-	strenRed();
-	//commonSubexprElim();
-	//deadCodeElimination();
+	deadCodeElimination();
 
-	printQuads();
+	//printQuads("Post Optimization");
+	printQuads("Dead Code Elimination");
 	printf("\n");
 }
+
+/* ------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+
+
 
 void freeAll()
 {
@@ -1069,7 +1232,7 @@ void freeAll()
 
 %%
 
-StartDebugger : {init();} StartParse T_EndOfFile {printf("\n-------------------------------------------------------------------------------------------------------------------------------------------------\nValid Python Syntax\n\n-------------------------------------------------------------Three Address Code--------------------------------------------------------------\n");  /*printAST($2);*/ codeGenOp($2); printQuads(); dispSymtable(); optimization(); freeAll(); exit(0);} ;
+StartDebugger : {init();} StartParse T_EndOfFile {printf("\n-------------------------------------------------------------------------------------------------------------------------------------------------\nValid Python Syntax\n\n-------------------------------------------------------------Three Address Code--------------------------------------------------------------\n");  /*printAST($2);*/ codeGenOp($2); printQuads(""); dispSymtable(); optimization(); freeAll(); exit(0);} ;
 
 constant : T_Number {insertRecord("Constant", $<text>1, "int", @1.first_line, currentScope);strcpy(g_dataType, "int");  $$ = createID_Const("Constant", $<text>1, currentScope);}
          | T_String {insertRecord("Constant", $<text>1, "str", @1.first_line, currentScope); strcpy(g_dataType, "str"); $$ = createID_Const("Constant", $<text>1, currentScope);};
