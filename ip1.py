@@ -17,16 +17,23 @@ def F1(A, B, C):
 	return
 
 					#sdbfkdsjbgdjhbgdkf	
+'''
+testing
+	testing
+x=11
+'''
 
+abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcd="too long"
+'''
 def F2():
 	def F3():
 		c=111
 		def F4():
 			d=233
+'''
 
 
 
-
-F2()
+#F2()
 #Comment2
 F1(10, 10, 10)
