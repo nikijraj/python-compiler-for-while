@@ -15,7 +15,7 @@
     
  	static int sp=0, stack [stack_size];
  	
- 	static void debug(const char *X)
+ 	static void disp_token(const char *X)
  	{
  		#ifdef DEBUG
 		if(!ftokens)
@@ -88,69 +88,69 @@ comment [\t]*#.*
 			{
 				while (depth < top()) pop();
 				yylval.depth = depth;
-				debug("Dedent");
+				disp_token("Dedent");
 				return T_Dedent;
 			}
 			
 			if(depth == top())
 			{
-				debug("Nodent");
+				disp_token("Nodent");
 				yylval.depth = depth;
 				return T_Nodent;				
 			}
 			if(depth > top())
 			{
 				push(depth);
-				debug("Indent");
+				disp_token("Indent");
 				yylval.depth = depth;
 				return T_Indent;
 			}
 			
 		}
 
-"import" {debug("IMPT"); return T_Import;}
-"print"  {debug("Print"); return T_Print;}
-"pass" {debug("Pass"); return T_Pass;}
-"if" {debug("If"); return T_If;}
-"in" {debug("In"); return T_In;}
-"range" {debug("Range"); return T_Range;}
-"for" {debug("For"); return T_For;}
-"while" {debug("While"); return T_While;}
-"break" {debug("Break"); return T_Break;}
-"and" {debug("And"); return T_And;}
-"or" {debug("Or"); return T_Or;}
-"not" {debug("Not"); return T_Not;}
-"elif" {debug("Elif"); return T_Elif;}
-"else" {debug("Else"); return T_Else;}
-"def" {debug("Def"); return T_Def;}
-"return" {debug("Return"); return T_Return;}
-":" {debug("Cln"); return T_Cln;}
-">" {debug("GT"); return T_GT;}
-"<" {debug("LT"); return T_LT;}
-">=" {debug("EGT"); return T_EGT;}
-"<=" {debug("ELT"); return T_ELT;}
-"==" {debug("EQ"); return T_EQ;}
-"!=" {debug("NEQ"); return T_NEQ;}
-"True" {debug("True"); return T_True;}
-"False" {debug("False"); return T_False;}
-"+" {debug("PL"); return T_PL;}
-"-" {debug("MN"); return T_MN;}
-"*" {debug("ML"); return T_ML;}
-"/" {debug("DV"); return T_DV;}
-"(" { debug("OP"); return T_OP;}
-")" {debug("CP"); return T_CP;}
-"[" {debug("OB"); return T_OB;}
-"]" {debug("CB"); return T_CB;}
-"," {debug("Comma"); return T_Comma;}
-"=" {debug("EQL"); return T_EQL;}
-"list" {debug("List"); return T_List;}
-[0-9]+ {yylval.text = strdup(yytext); debug(yylval.text); return T_Number;}
-[_a-zA-Z][_a-zA-Z0-9]* {if(strlen(yytext)>79){yytext[78]='\0';} yylval.text = strdup(yytext); debug(yylval.text); return T_ID;}
-\"([^\"\n])*\" {yylval.text = strdup(yytext); debug(yylval.text); return T_String;}
-\'([^\'\n])*\' {yylval.text = strdup(yytext); debug(yylval.text); return T_String;}
+"import" {disp_token("IMPT"); return T_Import;}
+"print"  {disp_token("Print"); return T_Print;}
+"pass" {disp_token("Pass"); return T_Pass;}
+"if" {disp_token("If"); return T_If;}
+"in" {disp_token("In"); return T_In;}
+"range" {disp_token("Range"); return T_Range;}
+"for" {disp_token("For"); return T_For;}
+"while" {disp_token("While"); return T_While;}
+"break" {disp_token("Break"); return T_Break;}
+"and" {disp_token("And"); return T_And;}
+"or" {disp_token("Or"); return T_Or;}
+"not" {disp_token("Not"); return T_Not;}
+"elif" {disp_token("Elif"); return T_Elif;}
+"else" {disp_token("Else"); return T_Else;}
+"def" {disp_token("Def"); return T_Def;}
+"return" {disp_token("Return"); return T_Return;}
+":" {disp_token("Cln"); return T_Cln;}
+">" {disp_token("GT"); return T_GT;}
+"<" {disp_token("LT"); return T_LT;}
+">=" {disp_token("EGT"); return T_EGT;}
+"<=" {disp_token("ELT"); return T_ELT;}
+"==" {disp_token("EQ"); return T_EQ;}
+"!=" {disp_token("NEQ"); return T_NEQ;}
+"True" {disp_token("True"); return T_True;}
+"False" {disp_token("False"); return T_False;}
+"+" {disp_token("PL"); return T_PL;}
+"-" {disp_token("MN"); return T_MN;}
+"*" {disp_token("ML"); return T_ML;}
+"/" {disp_token("DV"); return T_DV;}
+"(" { disp_token("OP"); return T_OP;}
+")" {disp_token("CP"); return T_CP;}
+"[" {disp_token("OB"); return T_OB;}
+"]" {disp_token("CB"); return T_CB;}
+"," {disp_token("Comma"); return T_Comma;}
+"=" {disp_token("EQL"); return T_EQL;}
+"list" {disp_token("List"); return T_List;}
+[0-9]+ {yylval.text = strdup(yytext); disp_token(yylval.text); return T_Number;}
+[_a-zA-Z][_a-zA-Z0-9]* {if(strlen(yytext)>79){yytext[78]='\0';} yylval.text = strdup(yytext); disp_token(yylval.text); return T_ID;}
+\"([^\"\n])*\" {yylval.text = strdup(yytext); disp_token(yylval.text); return T_String;}
+\'([^\'\n])*\' {yylval.text = strdup(yytext); disp_token(yylval.text); return T_String;}
 {whitespace} {} 
 {Multiline_comment} {} 
-"\n" {yycolumn=1; debug("NL"); return T_NL;}
-<<EOF>> {debug("EOF"); return T_EndOfFile;}
+"\n" {yycolumn=1; disp_token("NL"); return T_NL;}
+<<EOF>> {disp_token("EOF"); return T_EndOfFile;}
 
 %%

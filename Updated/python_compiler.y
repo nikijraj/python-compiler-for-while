@@ -106,7 +106,6 @@ void addToList(char *newVal, int flag);
 void clearArgsList();
 int isBinOp(char *Op);
 int tempNum(char* arr);
-void optimization();
 void printQuads(char *text);
 void printAST(Node *root);
 void ASTToArray(Node *root, int level);
@@ -149,47 +148,6 @@ void printQuads(char *text)
 }
 
 
-
-/*
-void printAST(Node *root)
-{
-	
-	printf("\n-------------------------------------------------------------Abstract Syntax Tree------------------------------------------------\n");
-	
-	ASTToArray(root, 0);
-	int j = 0, p, q, maxLevel = 0, lCount = 0;
-	
-	while(levelIndices[maxLevel] > 0) maxLevel++;
-	
-	while(levelIndices[j] > 0)
-	{
-		for(q=0; q<lCount; q++)
-		{
-			printf(" ");
-		
-		}
-		for(p=0; p<levelIndices[j] ; p++)
-		{
-			if(Tree[j][p]->opCount == -1)
-			{
-				printf("%s  ", Tree[j][p]->id->name);
-				lCount+=strlen(Tree[j][p]->id->name);
-			}
-			else if(Tree[j][p]->opCount == 0)
-			{
-				printf("%s  ", Tree[j][p]->NType);
-				lCount+=strlen(Tree[j][p]->NType);
-			}
-			else
-			{
-				printf("%s(%d) ", Tree[j][p]->NType, Tree[j][p]->opCount);
-			}
-		}
-		j++;
-		printf("\n");
-	}
-}
-*/
 
 /* ------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
 
@@ -703,7 +661,7 @@ void genCode(Node *opNode)
   			int i = 0;
 			while (token != NULL) 
 			{
-      			    i++; 
+      			i++; 
 			    fprintf(ftac,"Push Param %s\n", token);
 			    makeQuad("-", token, "-", "Param"); 
 			    token = strtok(NULL, ","); 
@@ -935,7 +893,7 @@ Record* findRecord(const char *name, const char *type, int codeScope)
 					return &(st[index].Elements[i]);
 				}	
 			}
-			printf("\n%s '%s' at line %d Not Found in Symbol Table at scope %d \n", type, name, yylineno, codeScope);
+			printf("\n%s '%s' at line %d not found in Symbol Table at current scope %d \n", type, name, yylineno, codeScope);
 			exit(1);
 		}
 		
@@ -1012,19 +970,6 @@ int deadCodeElimination()
 	}
 	return flag;
 }
-
-void copyProp()
-{
-	for(int i=0; i<qIndex; i++)
-	{
-		if((strcmp(quad_array[i].Op,"=")==0) && (strcmp(quad_array[i].A1,"-")!=0) && (strcmp(quad_array[i].A2,"-")==0) && ((quad_array[i].A1[0])!='T') && ((quad_array[i].R[0])!='T'))
-		{
-			strcpy(quad_array[i].R,quad_array[i].A1);
-			quad_array[i].A1="-";
-		}
-        }
-}
-
 
 void constantFolding()
 {
