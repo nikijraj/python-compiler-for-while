@@ -20,6 +20,7 @@ extern int pop();
 	
 	
 
+char g_dataType[100] = "";
 int currentScope = 0;
 // Bob int currentScope = -1;
 int scopeChange = 0; //flag
@@ -34,6 +35,7 @@ typedef struct Record
 {
 	char *type;
 	char *name;
+	char *datatype;
 	int decLine;
 	int lastLine;
 } Record;
@@ -88,8 +90,7 @@ void resetDepth();
 int scopeBasedTableSearch(int symTableScope);
 void initNewTable(int codeScope);
 void init();
-int searchRecordInScope(const char* type, const char *name, int index);
-void insertRecord(const char* type, const char *name, int lineNo, int codeScope);
+void insertRecord(const char* type, const char *name, const char* datatype, int lineNo, int codeScope);
 int searchRecordInScope(const char* type, const char *name, int index);
 void checkList(const char *name, int lineNo, int codeScope);
 void dispSymtable();
@@ -135,7 +136,7 @@ void Xitoa(int num, char *str)
 }
 
 //for intermediate code in sym table	
-char *makeStr(int no, int flag)
+char *makeStr(int no, int flag, char *datatype)
 {
 	char A[10];
 	Xitoa(no, A);
@@ -144,7 +145,7 @@ char *makeStr(int no, int flag)
 	{
 			strcpy(tString, "T");
 			strcat(tString, A);
-			insertRecord("TempVar", tString, -1, 1);
+			insertRecord("ICGTempVar", tString, datatype, -1, 1);
 //Bob			insertRecord("TempVar", tString, -1, 0);
 			return tString;
 	}
@@ -152,7 +153,7 @@ char *makeStr(int no, int flag)
 	{
 			strcpy(lString, "L");
 			strcat(lString, A);
-			insertRecord("TempLabel", lString, -1, 1);
+			insertRecord("ICGTempLabel", lString, "N/A", -1, 1);
 //Bob			insertRecord("TempLabel", lString, -1, 0);
 			return lString;
 	}
@@ -180,16 +181,17 @@ void makeQuad(char *R, char *A1, char *A2, char *Op)
 	
 int isBinOp(char *Op)
 {
-		if((strcmp(Op, "+")==0) || (strcmp(Op, "*")==0) || (strcmp(Op, "/")==0) || (strcmp(Op, ">=")==0) || (strcmp(Op, "<=")==0) || (strcmp(Op, "<")==0) || (strcmp(Op, ">")==0) || 
-			 (strcmp(Op, "in")==0) || (strcmp(Op, "==")==0) || (strcmp(Op, "and")==0) || (strcmp(Op, "or")==0))
-			{
-				return 1;
-			}
-			
-			else 
-			{
-				return 0;
-			}
+    if((strcmp(Op, "+")==0) || (strcmp(Op, "*")==0) || (strcmp(Op, "/")==0)) {
+      return 1;
+    } else if ((strcmp(Op, ">=")==0) || (strcmp(Op, "<=")==0) || (strcmp(Op, "<")==0) || (strcmp(Op, ">")==0)) {
+      return 2;
+    } else if ((strcmp(Op, "==")==0) || (strcmp(Op, "and")==0) || (strcmp(Op, "or")==0)) {
+			return 3;
+    } else if (strcmp(Op, "in") == 0) {
+      return 4;
+    }else {
+			return 0;
+	}
 }
 
 void codeGenOp(Node *opNode)
@@ -223,14 +225,14 @@ void codeGenOp(Node *opNode)
 				printf("%s = %s\n",quad_array[i].A1, opNode->id->name);
 				
 				int n=tempNum(quad_array[i].A1);
-				makeQuad(makeStr(n,1), opNode->id->name, "-", "=");
+				makeQuad(makeStr(n,1, "unknown"), opNode->id->name, "-", "=");
 					
 			}
 			
 			else
 			{	
 				printf("T%d = %s\n", opNode->nodeNo, opNode->id->name);
-				makeQuad(makeStr(opNode->nodeNo, 1), opNode->id->name, "-", "=");
+				makeQuad(makeStr(opNode->nodeNo, 1, "TempVarType"), opNode->id->name, "-", "=");
 			}
 		}
 		return;
@@ -241,12 +243,13 @@ void codeGenOp(Node *opNode)
 		codeGenOp(opNode->NextLevel[1]); 
 	
 		printf("%s = T%d\n", opNode->NextLevel[0]->id->name, opNode->NextLevel[1]->nodeNo);
-		makeQuad(opNode->NextLevel[0]->id->name, makeStr(opNode->NextLevel[1]->nodeNo, 1), "-", opNode->NType);
+		makeQuad(opNode->NextLevel[0]->id->name, makeStr(opNode->NextLevel[1]->nodeNo, 1, "TempVarType"), "-", opNode->NType);
 		
 		return;
 	}
 	
-	if(isBinOp(opNode->NType)==1)
+	int bin = isBinOp(opNode->NType);
+	if(bin)
 	{
 		//node has two children
 		
@@ -258,10 +261,31 @@ void codeGenOp(Node *opNode)
 		char *X3 = (char*)malloc(10);
 		
 			
-		strcpy(X1, makeStr(opNode->nodeNo, 1));
+    	char* r = (char*)malloc(10);
+    	char* t1 = (char*)malloc(10);
+	    char* t2 = (char*)malloc(10);
+		
+   	 	if (bin == 1) {
+   	   		strcpy(r, "float");
+			strcpy(t1, "float");
+			strcpy(t2, "float");
+		} else if (bin == 2) {
+	 		strcpy(r, "bool");
+			strcpy(t1, "float");
+			strcpy(t2, "float");
+		} else if (bin == 3) {
+			strcpy(r, "bool");
+			strcpy(t1, "bool");
+			strcpy(t2, "bool"); 
+		} else if (bin == 4) {
+			strcpy(r, "bool");
+			strcpy(t1, "unknown");
+			strcpy(t2, "list"); 
+		}
+		strcpy(X1, makeStr(opNode->nodeNo, 1,r));
 		
 		
-		int l=0,r=0,i=0,j=0,flag=0;
+		int l=0,r1=0,i=0,j=0,flag=0;
 		for(i=0; i<qIndex; i++)
 		{
 			if( (!opNode->NextLevel[0]->id) || (!opNode->NextLevel[1]->id) )
@@ -272,20 +296,20 @@ void codeGenOp(Node *opNode)
 				j=i;
 			}
 				
-			if((r!=1) && (strcmp(opNode->NextLevel[1]->id->name,quad_array[i].R)==0) && (strcmp(quad_array[i].A2,"-")==0) && (strcmp(quad_array[i].Op,"=")==0))			
+			if((r1!=1) && (strcmp(opNode->NextLevel[1]->id->name,quad_array[i].R)==0) && (strcmp(quad_array[i].A2,"-")==0) && (strcmp(quad_array[i].Op,"=")==0))			
 			{
-				r=1;
+				r1=1;
 			}
 			
-			if(l!=0 && r!=0)
+			if(l!=0 && r1!=0)
 				break;
 			
 		}	
-		if(l==1 && r==1)
+		if(l==1 && r1==1)
 			flag=1;
-		else if(r==0 && l!=0)
+		else if(r1==0 && l!=0)
 			flag=2;
-		else if(r!=0 && l==0)
+		else if(r1!=0 && l==0)
 			flag=3;	
 		
 
@@ -296,8 +320,8 @@ void codeGenOp(Node *opNode)
 			int m=tempNum(quad_array[i].A1);
 			int n=tempNum(quad_array[j].A1);
 			
-			strcpy(X2, makeStr(n, 1));
-			strcpy(X3, makeStr(m, 1));	
+			strcpy(X2, makeStr(n, 1, t1));
+			strcpy(X3, makeStr(m, 1, t2));	
 		}
 		
 		else if(flag==2)
@@ -305,8 +329,8 @@ void codeGenOp(Node *opNode)
 			printf("T%d = %s %s T%d\n", opNode->nodeNo, quad_array[j].A1, opNode->NType, opNode->NextLevel[1]->nodeNo);
 			
 			int n=tempNum(quad_array[j].A1);
-			strcpy(X2, makeStr(n, 1));
-			strcpy(X3, makeStr(opNode->NextLevel[1]->nodeNo, 1));	
+			strcpy(X2, makeStr(n, 1, t1));
+			strcpy(X3, makeStr(opNode->NextLevel[1]->nodeNo, 1, t2));	
 		}
 		
 		else if(flag==3)
@@ -314,14 +338,14 @@ void codeGenOp(Node *opNode)
 			printf("T%d = T%d %s %s\n", opNode->nodeNo, opNode->NextLevel[0]->nodeNo, opNode->NType, quad_array[i].A1);
 			
 			int n=tempNum(quad_array[j].A1);
-			strcpy(X2, makeStr(opNode->NextLevel[0]->nodeNo, 1));
-			strcpy(X3, makeStr(n, 1));	
+			strcpy(X2, makeStr(opNode->NextLevel[0]->nodeNo, 1, t1));
+			strcpy(X3, makeStr(n, 1, t2));	
 		}	
 		
 		else
 		{		
-			strcpy(X2, makeStr(opNode->NextLevel[0]->nodeNo, 1));
-			strcpy(X3, makeStr(opNode->NextLevel[1]->nodeNo, 1));
+			strcpy(X2, makeStr(opNode->NextLevel[0]->nodeNo, 1, t1));
+			strcpy(X3, makeStr(opNode->NextLevel[1]->nodeNo, 1, t2));
 			printf("T%d = T%d %s T%d\n", opNode->nodeNo, opNode->NextLevel[0]->nodeNo, opNode->NType, opNode->NextLevel[1]->nodeNo);
 		}
 			
@@ -339,22 +363,23 @@ void codeGenOp(Node *opNode)
 		//next level of AST
 		codeGenOp(opNode->NextLevel[0]);
 		printf("\nL%d: ", label_index);
+		makeQuad(makeStr(temp, 0, "LabelType"), "-", "-", "Label");		
 		codeGenOp(opNode->NextLevel[1]);
 		//three address code
 		printf("If False T%d goto L%d\n", opNode->NextLevel[1]->nodeNo, temp+1);
-		makeQuad(makeStr(temp, 0), "-", "-", "Label");		
-		makeQuad(makeStr(temp+1, 0), makeStr(opNode->NextLevel[0]->nodeNo, 1), "-", "If False");								
+		makeQuad(makeStr(temp+1, 0, "LabelType"), makeStr(opNode->NextLevel[1]->nodeNo, 1, "TempVarType"), "-", "If False");	
 		//next level of AST
 		codeGenOp(opNode->NextLevel[2]);
 		//three address code
 		printf("If False T%d goto L%d\n", opNode->NextLevel[2]->nodeNo, temp+1);
-		makeQuad(makeStr(temp, 0), "-", "-", "goto");
+		makeQuad(makeStr(temp+1, 0, "LabelType"), makeStr(opNode->NextLevel[2]->nodeNo, 1, "TempVarType"), "-", "if false");	
 		//next level of AST
 		codeGenOp(opNode->NextLevel[3]);
 		//three address code
 		printf("goto L%d\n", temp);
+		makeQuad(makeStr(temp, 0, "LabelType"), "-", "-", "goto");
 		printf("L%d: ", temp+1);
-		makeQuad(makeStr(temp+1, 0), "-", "-", "Label"); 
+		makeQuad(makeStr(temp+1, 0, "LabelType"), "-", "-", "Label"); 
 		label_index = label_index+2;
 		return;
 	}
@@ -364,24 +389,24 @@ void codeGenOp(Node *opNode)
 		int temp = label_index;
 		//next level of AST
 		printf("\nL%d: ", label_index);
+		makeQuad(makeStr(temp, 0, "LabelType"), "-", "-", "Label");		
 		codeGenOp(opNode->NextLevel[0]);
 		//three address code
 		printf("If False T%d goto L%d\n", opNode->NextLevel[0]->nodeNo, label_index+1);
-		makeQuad(makeStr(temp, 0), "-", "-", "Label");		
-		makeQuad(makeStr(temp+1, 0), makeStr(opNode->NextLevel[0]->nodeNo, 1), "-", "If False");								
+		makeQuad(makeStr(temp+1, 0, "LabelType"), makeStr(opNode->NextLevel[0]->nodeNo, 1, "TempVarType"), "-", "If False");	
 		//next level of AST
 		codeGenOp(opNode->NextLevel[1]);
 		//three address code
 		printf("goto L%d\n", temp);
-		makeQuad(makeStr(temp, 0), "-", "-", "goto");
+		makeQuad(makeStr(temp, 0, "LabelType"), "-", "-", "goto");
 		//three address code
 		printf("L%d: ", temp+1);
 		fflush(stdout);
-		makeQuad(makeStr(temp+1, 0), "-", "-", "Label"); 
+		makeQuad(makeStr(temp+1, 0, "LabelType"), "-", "-", "Label"); 
 		label_index = label_index+2;
 		return;
 	}
-	
+
 	if(strcmp(opNode->NType, "Next")==0)
 	{
 		codeGenOp(opNode->NextLevel[0]);
@@ -416,7 +441,7 @@ void codeGenOp(Node *opNode)
 	if(strcmp(opNode->NType, "ListIndex")==0)
 	{
 		printf("T%d = %s[%s]\n", opNode->nodeNo, opNode->NextLevel[0]->id->name, opNode->NextLevel[1]->id->name);
-		makeQuad(makeStr(opNode->nodeNo, 1), opNode->NextLevel[0]->id->name, opNode->NextLevel[1]->id->name, "=[]");
+		makeQuad(makeStr(opNode->nodeNo, 1, "unknown"), opNode->NextLevel[0]->id->name, opNode->NextLevel[1]->id->name, "=[]");
 		return;
 	}
 	
@@ -428,8 +453,8 @@ void codeGenOp(Node *opNode)
 			codeGenOp(opNode->NextLevel[0]);
 			char *X1 = (char*)malloc(10);
 			char *X2 = (char*)malloc(10);
-			strcpy(X1, makeStr(opNode->nodeNo, 1));
-			strcpy(X2, makeStr(opNode->NextLevel[0]->nodeNo, 1));
+			strcpy(X1, makeStr(opNode->nodeNo, 1, "unknown"));
+			strcpy(X2, makeStr(opNode->NextLevel[0]->nodeNo, 1, "unknown"));
 			printf("T%d = %s T%d\n", opNode->nodeNo, opNode->NType, opNode->NextLevel[0]->nodeNo);
 			makeQuad(X1, X2, "-", opNode->NType);	
 		}
@@ -442,9 +467,9 @@ void codeGenOp(Node *opNode)
 			char *X2 = (char*)malloc(10);
 			char *X3 = (char*)malloc(10);
 	
-			strcpy(X1, makeStr(opNode->nodeNo, 1));
-			strcpy(X2, makeStr(opNode->NextLevel[0]->nodeNo, 1));
-			strcpy(X3, makeStr(opNode->NextLevel[1]->nodeNo, 1));
+			strcpy(X1, makeStr(opNode->nodeNo, 1, "unknown"));
+			strcpy(X2, makeStr(opNode->NextLevel[0]->nodeNo, 1, "unknown"));
+			strcpy(X3, makeStr(opNode->NextLevel[1]->nodeNo, 1, "unknown"));
 
 			printf("T%d = T%d %s T%d\n", opNode->nodeNo, opNode->NextLevel[0]->nodeNo, opNode->NType, opNode->NextLevel[1]->nodeNo);
 			makeQuad(X1, X2, X3, opNode->NType);
@@ -486,7 +511,7 @@ void codeGenOp(Node *opNode)
 		if(strcmp(opNode->NextLevel[1]->NType, "Void")==0)
 		{
 			printf("(T%d)Call Function %s\n", opNode->nodeNo, opNode->NextLevel[0]->id->name);
-			makeQuad(makeStr(opNode->nodeNo, 1), opNode->NextLevel[0]->id->name, "-", "Call");
+			makeQuad(makeStr(opNode->nodeNo, 1, "fun"), opNode->NextLevel[0]->id->name, "-", "Call");
 		}
 		else
 		{
@@ -503,7 +528,7 @@ void codeGenOp(Node *opNode)
 				
 			printf("(T%d)Call Function %s, %d\n", opNode->nodeNo, opNode->NextLevel[0]->id->name, i);
 			sprintf(A, "%d", i);
-			makeQuad(makeStr(opNode->nodeNo, 1), opNode->NextLevel[0]->id->name, A, "Call");
+			makeQuad(makeStr(opNode->nodeNo, 1, "fun"), opNode->NextLevel[0]->id->name, A, "Call");
 			printf("Pop Params for Function %s, %d\n", opNode->NextLevel[0]->id->name, i);
 							
 			return;
@@ -663,7 +688,7 @@ int searchRecordInScope(const char* type, const char *name, int index)
 		return -1;
 }
 		
-void modifyRecordID(const char *type, const char *name, int lineNo, int codeScope)
+Record* modifyRecordID(const char *type, const char *name, int lineNo, int codeScope)
 {
 		int i =0;
 //		int FScope = power(scope, arrayScope[scope]);
@@ -678,7 +703,7 @@ void modifyRecordID(const char *type, const char *name, int lineNo, int codeScop
 				if(strcmp(st[index].Elements[i].type, type)==0 && (strcmp(st[index].Elements[i].name, name)==0))
 				{
 					st[index].Elements[i].lastLine = lineNo;
-					return;
+					return &(st[index].Elements[i]);
 				}	
 			}
 			printf("%s '%s' at line %d Not Declared\n", type, name, yylineno);
@@ -690,14 +715,14 @@ void modifyRecordID(const char *type, const char *name, int lineNo, int codeScop
 			if(strcmp(st[index].Elements[i].type, type)==0 && (strcmp(st[index].Elements[i].name, name)==0))
 			{
 				st[index].Elements[i].lastLine = lineNo;
-				return;
+				return &(st[index].Elements[i]);
 			}	
 		}
 //Bob		return modifyRecordID(type, name, lineNo, st[st[index].parentScopeIndex].scope);
 		return modifyRecordID(type, name, lineNo, codeScope-1);
 }
 	
-void insertRecord(const char* type, const char *name, int lineNo, int codeScope)
+void insertRecord(const char* type, const char *name, const char * datatype, int lineNo, int codeScope)
 { 
 //		int FScope = power(scope, arrayScope[scope]);
 		int FScope = hashScope(codeScope);
@@ -708,9 +733,11 @@ void insertRecord(const char* type, const char *name, int lineNo, int codeScope)
 		{
 			st[index].Elements[st[index].ele_count].type = (char*)calloc(30, sizeof(char));
 			st[index].Elements[st[index].ele_count].name = (char*)calloc(80, sizeof(char));
+      		st[index].Elements[st[index].ele_count].datatype = (char*)calloc(80, sizeof(char));
 		
 			strcpy(st[index].Elements[st[index].ele_count].type, type);	
 			strcpy(st[index].Elements[st[index].ele_count].name, name);
+			strcpy(st[index].Elements[st[index].ele_count].datatype, datatype);
 			st[index].Elements[st[index].ele_count].decLine = lineNo;
 			st[index].Elements[st[index].ele_count].lastLine = lineNo;
 			st[index].ele_count++;
@@ -811,13 +838,13 @@ void dispSymtable()
 	int i = 0, j = 0;
 
 	printf("\n----------------------------------------------------------------Symbol Table----------------------------------------------------------------\n");
-	printf("\n  Scope\t\t\tName\t\t\tType\t\t\t\tDeclaration\t\t\tLast Used Line\n\n");
+	printf("\n  Scope\t\t\tName\t\t\tData Type\t\t\tType\t\t\t\tDeclaration\t\t\tLast Used Line\n\n");
 	for(i=0; i<=sIndex; i++)
 	{
 		for(j=0; j<st[i].ele_count; j++)
 		{
 //Bob			printf("(%d, %d)\t\t\t%s\t\t\t%s\t\t\t%d\t\t\t\t%d\n", st[i].parentScopeIndex, st[i].symTableScope, st[i].Elements[j].name, st[i].Elements[j].type, st[i].Elements[j].decLine,  st[i].Elements[j].lastLine);
-			printf("  %d\t\t\t%s\t\t\t%s\t\t\t%d\t\t\t\t%d\n", st[i].symTableScope, st[i].Elements[j].name, st[i].Elements[j].type, st[i].Elements[j].decLine,  st[i].Elements[j].lastLine);
+			printf("  %d\t\t\t%s\t\t\t%s\t\t\t%s\t\t\t%d\t\t\t\t%d\n", st[i].symTableScope, st[i].Elements[j].name, st[i].Elements[j].datatype, st[i].Elements[j].type, st[i].Elements[j].decLine,  st[i].Elements[j].lastLine);
 		}
 	}
 
@@ -1044,12 +1071,11 @@ void freeAll()
 
 StartDebugger : {init();} StartParse T_EndOfFile {printf("\n-------------------------------------------------------------------------------------------------------------------------------------------------\nValid Python Syntax\n\n-------------------------------------------------------------Three Address Code--------------------------------------------------------------\n");  /*printAST($2);*/ codeGenOp($2); printQuads(); dispSymtable(); optimization(); freeAll(); exit(0);} ;
 
-constant : T_Number {insertRecord("Constant", $<text>1, @1.first_line, currentScope); $$ = createID_Const("Constant", $<text>1, currentScope);}
-         | T_String {insertRecord("Constant", $<text>1, @1.first_line, currentScope); $$ = createID_Const("Constant", $<text>1, currentScope);}
-         | T_True {insertRecord("Constant", "True", @1.first_line, currentScope); $$ = createID_Const("Constant", "True", currentScope);}
-         | T_False {insertRecord("Constant", "False", @1.first_line, currentScope); $$ = createID_Const("Constant", "False", currentScope);};
-
-term : T_ID {modifyRecordID("Identifier", $<text>1, @1.first_line, currentScope); $$ = createID_Const("Identifier", $<text>1, currentScope);} 
+constant : T_Number {insertRecord("Constant", $<text>1, "int", @1.first_line, currentScope);strcpy(g_dataType, "int");  $$ = createID_Const("Constant", $<text>1, currentScope);}
+         | T_String {insertRecord("Constant", $<text>1, "str", @1.first_line, currentScope); strcpy(g_dataType, "str"); $$ = createID_Const("Constant", $<text>1, currentScope);};
+         | T_True {insertRecord("Constant", "True", "bool", @1.first_line, currentScope); strcpy(g_dataType, "bool"); $$ = createID_Const("Constant", "True", currentScope);}
+         | T_False {insertRecord("Constant", "False", "bool", @1.first_line, currentScope); strcpy(g_dataType, "bool"); $$ = createID_Const("Constant", "False", currentScope);};
+term : T_ID {Record *element = modifyRecordID("Identifier", $<text>1, @1.first_line, currentScope); strcpy(g_dataType, element->datatype); $$ = createID_Const("Identifier", $<text>1, currentScope);} 
      | constant {$$ = $1;} 
      | list_index {$$ = $1;};
 
@@ -1086,21 +1112,21 @@ bool_exp : bool_term T_Or bool_term {$$ = createOp("or", 2, $1, $3);}
 
 bool_term : bool_factor {$$ = $1;}
           | arith_exp T_EQ arith_exp {$$ = createOp("==", 2, $1, $3);}
-          | T_True {insertRecord("Constant", "True", @1.first_line, currentScope); $$ = createID_Const("Constant", "True", currentScope);}
-          | T_False {insertRecord("Constant", "False", @1.first_line, currentScope); $$ = createID_Const("Constant", "False", currentScope);}; 
+          | T_True {insertRecord("Constant", "True", "bool", @1.first_line, currentScope); $$ = createID_Const("Constant", "True", currentScope);}
+          | T_False {insertRecord("Constant", "False", "bool", @1.first_line, currentScope); $$ = createID_Const("Constant", "False", currentScope);}; 
           
 bool_factor : T_Not bool_factor {$$ = createOp("!", 1, $2);}
             | T_OP bool_exp T_CP {$$ = $2;}; 
 
-import_stmt : T_Import T_ID {insertRecord("PackageName", $<text>2, @2.first_line, currentScope); $$ = createOp("import", 1, createID_Const("PackageName", $<text>2, currentScope));};
+import_stmt : T_Import T_ID {insertRecord("PackageName", $<text>2, "N/A", @2.first_line, currentScope); $$ = createOp("import", 1, createID_Const("PackageName", $<text>2, currentScope));};
 pass_stmt : T_Pass {$$ = createOp("pass", 0);};
 break_stmt : T_Break {$$ = createOp("break", 0);};
 return_stmt : T_Return {$$ = createOp("return", 0);};;
 
-assign_stmt : T_ID T_EQL arith_exp {insertRecord("Identifier", $<text>1, @1.first_line, currentScope); $$ = createOp("=", 2, createID_Const("Identifier", $<text>1, currentScope), $3);}  
-            | T_ID T_EQL bool_exp {insertRecord("Identifier", $<text>1, @1.first_line, currentScope);$$ = createOp("=", 2, createID_Const("Identifier", $<text>1, currentScope), $3);}   
-            | T_ID  T_EQL func_call {insertRecord("Identifier", $<text>1, @1.first_line, currentScope); $$ = createOp("=", 2, createID_Const("Identifier", $<text>1, currentScope), $3);} 
-            | T_ID T_EQL T_OB T_CB {insertRecord("ListTypeID", $<text>1, @1.first_line, currentScope); $$ = createID_Const("ListTypeID", $<text>1, currentScope);} ;
+assign_stmt : T_ID T_EQL arith_exp { if(!strlen(g_dataType)) { strcpy(g_dataType, "float"); } insertRecord("Identifier", $<text>1, g_dataType, @1.first_line, currentScope); strcpy(g_dataType,""); $$ = createOp("=", 2, createID_Const("Identifier", $<text>1, currentScope), $3);}  
+            | T_ID T_EQL bool_exp {insertRecord("Identifier", $<text>1, "bool", @1.first_line, currentScope);$$ = createOp("=", 2, createID_Const("Identifier", $<text>1, currentScope), $3);}   
+            | T_ID  T_EQL func_call {insertRecord("Identifier", $<text>1, "unknown return", @1.first_line, currentScope); $$ = createOp("=", 2, createID_Const("Identifier", $<text>1, currentScope), $3);} 
+            | T_ID T_EQL T_OB T_CB {insertRecord("ListTypeID", $<text>1, "list", @1.first_line, currentScope); $$ = createID_Const("ListTypeID", $<text>1, currentScope);} ;
 	      
 finalStatements : basic_stmt {$$ = $1;}
                 | cmpd_stmt {$$ = $1;}
@@ -1115,13 +1141,13 @@ cmpd_stmt : while_stmt {$$ = $1;}
 while_stmt : T_While bool_exp T_Cln begin_block {$$ = createOp("While", 2, $2, $4);}; 
 
 for_stmt : T_For T_ID T_In T_Range T_OP term T_Comma term T_CP T_Cln begin_block { 
-	insertRecord("Identifier", $<text>2, @1.first_line, currentScope); 
+	insertRecord("Identifier", $<text>2, "int", @1.first_line, currentScope); 
 	Node* idNode = createID_Const("Identifier", $<text>2, currentScope); 
 	e1 = createOp("=", 2, idNode, $<text>6); 
 	e2 = createOp(">=", 2, idNode, $<text>6); 
 	e3 = createOp("<", 2, idNode, $<text>8); 
 	$$ = createOp("For", 4, e1, e2, e3, $11);
-} 
+}; 
 
 
 begin_block : basic_stmt {$$ = $1;}
@@ -1153,7 +1179,7 @@ call_args : T_ID {addToList($<text>1, 1);} call_list {$$ = createOp(argsList, 0)
 					| {$$ = createOp("Void", 0);};
 
 func_def : T_Def T_ID {
-	insertRecord("Func_Name", $<text>2, @2.first_line, currentScope);
+	insertRecord("Func_Name", $<text>2, "fun", @2.first_line, currentScope);
 	scopeChange++ ; } 
 	T_OP args T_CP T_Cln begin_block {
 	$$ = createOp("Func_Name", 3, createID_Const("Func_Name", $<text>2, currentScope), $5, $8);};
